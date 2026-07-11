@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pomaire Compra y Venta</title>
+<meta name="description" content="Directorio de emprendimientos y chat comunitario de Pomaire. Publica tu negocio gratis y conversa con la comunidad.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -187,6 +189,7 @@
     font-size:0.93rem;
     line-height:1.5;
     color:#4a3c30;
+    white-space:pre-wrap;
   }
   .card-foot{
     display:flex;
@@ -199,10 +202,14 @@
     border-top:1px dashed #d8c7ac;
     padding-top:10px;
   }
-  .card-contact a{
+  .card-contact{
+    background:none;border:none;padding:0;
     color:var(--clay-red);
     text-decoration:none;
     font-weight:600;
+    font-size:0.82rem;
+    font-family:'Work Sans',sans-serif;
+    cursor:pointer;
   }
   .card-author{font-family:'Space Mono',monospace;font-size:0.7rem;color:#9c8a76;}
 
@@ -275,6 +282,12 @@
   input:focus, textarea:focus, select:focus{
     outline:none;border-color:var(--clay-red);
   }
+  .form-error{
+    color:var(--danger);
+    font-size:0.8rem;
+    margin-top:10px;
+    min-height:1em;
+  }
   .modal-actions{display:flex;gap:10px;margin-top:22px;}
   .btn{
     flex:1;
@@ -305,6 +318,8 @@
     font-size:0.92rem;
     line-height:1.4;
     align-self:flex-start;
+    white-space:pre-wrap;
+    word-break:break-word;
   }
   .msg.mine{
     align-self:flex-end;
@@ -352,6 +367,7 @@
     background:var(--gold);border:none;color:var(--charcoal);
     font-size:1.1rem;cursor:pointer;flex-shrink:0;
   }
+  .send-btn:disabled{opacity:0.5;cursor:default;}
   .name-gate{
     text-align:center;padding:70px 24px;
   }
@@ -367,7 +383,9 @@
     padding:10px 18px;border-radius:20px;
     font-size:0.85rem;font-weight:600;
     z-index:60;box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    max-width:88vw;text-align:center;
   }
+  .toast.error{background:var(--danger);color:#fff;}
 </style>
 </head>
 <body>
@@ -411,7 +429,7 @@
     <div id="nameGate" class="name-gate hidden">
       <strong>¿Cómo te llamas?</strong>
       <p>Tu nombre aparecerá junto a tus mensajes en el chat de la comunidad.</p>
-      <input type="text" id="nameInput" placeholder="Ej: María, Feria de greda">
+      <input type="text" id="nameInput" placeholder="Ej: María, Feria de greda" maxlength="40">
       <button class="btn btn-primary" id="saveNameBtn">Entrar al chat</button>
     </div>
     <div id="chatArea" class="chat-wrap hidden">
@@ -451,10 +469,12 @@
     <input type="text" id="fContacto" placeholder="Ej: +56 9 1234 5678" maxlength="80">
 
     <label for="fImg">Link de una foto (opcional)</label>
-    <input type="text" id="fImg" placeholder="https://…">
+    <input type="text" id="fImg" placeholder="https://…" maxlength="500">
 
     <label for="fAutor">Tu nombre</label>
     <input type="text" id="fAutor" placeholder="Ej: Familia Vergara" maxlength="40">
+
+    <div class="form-error" id="formError"></div>
 
     <div class="modal-actions">
       <button class="btn btn-ghost" id="cancelBtn">Cancelar</button>
@@ -469,11 +489,14 @@ let negocios = [];
 let mensajes = [];
 let activeCat = "Todos";
 let userName = null;
+let lastMsgTs = 0;
 let chatPollTimer = null;
 
+/* ---------------- Helpers de seguridad y formato ---------------- */
+// Escapa texto para insertarlo de forma segura dentro de HTML (nodos de texto).
 function esc(s){
   const d = document.createElement('div');
-  d.textContent = s;
+  d.textContent = s == null ? '' : String(s);
   return d.innerHTML;
 }
 
@@ -482,12 +505,30 @@ function fmtTime(ts){
   return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
 }
 
-function showToast(msg){
+function showToast(msg, isError){
   const t = document.createElement('div');
-  t.className = 'toast';
+  t.className = 'toast' + (isError ? ' error' : '');
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(()=>t.remove(), 2200);
+  setTimeout(()=>t.remove(), 2600);
+}
+
+async function apiGet(url){
+  const res = await fetch(url);
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || 'Error de red');
+  return data;
+}
+
+async function apiPost(url, body){
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || 'Error de red');
+  return data;
 }
 
 /* ---------------- Tabs ---------------- */
@@ -517,19 +558,16 @@ function renderChips(){
   });
 }
 
-/* ---------------- Negocios: storage ---------------- */
+/* ---------------- Negocios: API real (Vercel + Redis) ---------------- */
 async function loadNegocios(){
   try{
-    const res = await window.storage.get('negocios:lista', true);
-    negocios = res && res.value ? JSON.parse(res.value) : [];
+    const data = await apiGet('/api/negocios');
+    negocios = data.negocios || [];
   }catch(e){
     negocios = [];
+    showToast('No se pudo cargar la lista. Revisa tu conexión.', true);
   }
   renderNegocios();
-}
-
-async function saveNegocios(){
-  await window.storage.set('negocios:lista', JSON.stringify(negocios), true);
 }
 
 function renderNegocios(){
@@ -549,9 +587,12 @@ function renderNegocios(){
     return;
   }
 
+  // Todo el texto se inserta con esc() (nodos de texto). El contacto NO se pone en un
+  // atributo/onclick inline: se guarda en data-contacto y se lee vía dataset, evitando
+  // cualquier fuga de comillas hacia HTML o JavaScript inline (XSS).
   list.innerHTML = sorted.map(n => `
     <div class="card">
-      ${n.imagen ? `<img class="card-img" src="${esc(n.imagen)}" alt="${esc(n.nombre)}" onerror="this.style.display='none'">` : ''}
+      ${n.imagen ? `<img class="card-img" src="${esc(n.imagen)}" alt="${esc(n.nombre)}" loading="lazy" onerror="this.style.display='none'">` : ''}
       <div class="card-body">
         <div class="card-top">
           <div>
@@ -561,7 +602,7 @@ function renderNegocios(){
         </div>
         <p class="card-desc">${esc(n.descripcion)}</p>
         <div class="card-foot">
-          <span class="card-contact">📞 <a href="#" onclick="navigator.clipboard && navigator.clipboard.writeText('${esc(n.contacto)}'); return false;">${esc(n.contacto)}</a></span>
+          <button type="button" class="card-contact" data-contacto="${esc(n.contacto)}">📞 ${esc(n.contacto)}</button>
           <span class="card-author">publicado por ${esc(n.autor)} · ${fmtTime(n.creado)}</span>
         </div>
       </div>
@@ -569,9 +610,22 @@ function renderNegocios(){
   `).join('');
 }
 
+// Delegación de eventos: copiar contacto al portapapeles sin usar onclick inline con datos del usuario.
+document.getElementById('negociosList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.card-contact');
+  if(!btn) return;
+  const contacto = btn.dataset.contacto || '';
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(contacto).then(()=>showToast('Contacto copiado')).catch(()=>{});
+  }
+});
+
 /* ---------------- Modal ---------------- */
 const overlay = document.getElementById('modalOverlay');
+const formError = document.getElementById('formError');
+
 document.getElementById('fabBtn').addEventListener('click', ()=>{
+  formError.textContent = '';
   overlay.classList.remove('hidden');
 });
 document.getElementById('cancelBtn').addEventListener('click', ()=>{
@@ -587,62 +641,31 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
   const imagen = document.getElementById('fImg').value.trim();
   const autor = document.getElementById('fAutor').value.trim() || 'Anónimo';
 
+  formError.textContent = '';
   if(!nombre || !descripcion || !contacto){
-    showToast('Completa nombre, descripción y contacto');
+    formError.textContent = 'Completa nombre, descripción y contacto.';
     return;
   }
 
   const btn = document.getElementById('publishBtn');
   btn.disabled = true; btn.textContent = 'Publicando…';
 
-  const nuevo = {
-    id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    nombre, categoria, descripcion, contacto, imagen, autor,
-    creado: Date.now()
-  };
-
   try{
-    negocios.push(nuevo);
-    await saveNegocios();
-    renderNegocios();
-
-    // publicar en paralelo al chat
-    await postSystemMessage(`📢 Nuevo emprendimiento: "${nombre}" (${categoria}) — publicado por ${autor}`);
+    await apiPost('/api/negocios', { nombre, categoria, descripcion, contacto, imagen, autor });
+    await loadNegocios();
 
     overlay.classList.add('hidden');
     ['fNombre','fDesc','fContacto','fImg','fAutor'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('fCategoria').selectedIndex = 0;
     showToast('¡Publicado con éxito!');
   }catch(e){
-    showToast('Error al publicar, intenta de nuevo');
+    formError.textContent = e.message || 'Error al publicar, intenta de nuevo.';
   }finally{
     btn.disabled = false; btn.textContent = 'Publicar';
   }
 });
 
-/* ---------------- Chat: storage ---------------- */
-async function loadMensajes(){
-  try{
-    const res = await window.storage.get('chat:mensajes', true);
-    mensajes = res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){
-    mensajes = [];
-  }
-}
-
-async function saveMensajes(){
-  // limitar a los últimos 300 mensajes
-  if(mensajes.length > 300) mensajes = mensajes.slice(mensajes.length - 300);
-  await window.storage.set('chat:mensajes', JSON.stringify(mensajes), true);
-}
-
-async function postSystemMessage(text){
-  await loadMensajes();
-  mensajes.push({ id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), autor:'Pomaire', texto:text, ts:Date.now(), system:true });
-  await saveMensajes();
-  if(!document.getElementById('tab-chat').classList.contains('hidden')) renderMensajes();
-}
-
+/* ---------------- Chat: API real (Vercel + Redis) ---------------- */
 function renderMensajes(){
   const wrap = document.getElementById('chatMsgs');
   const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 40;
@@ -658,16 +681,30 @@ function renderMensajes(){
         <div class="msg-time">${fmtTime(m.ts)}</div>
       </div>`;
   }).join('');
+  if(mensajes.length) lastMsgTs = mensajes[mensajes.length - 1].ts;
   if(atBottom || mensajes.length <= 20) wrap.scrollTop = wrap.scrollHeight;
 }
 
-async function initChatView(){
+async function loadMensajes(){
   try{
-    const res = await window.storage.get('perfil:nombre', false);
-    userName = res && res.value ? res.value : null;
+    const data = await apiGet('/api/mensajes');
+    mensajes = data.mensajes || [];
   }catch(e){
-    userName = null;
+    showToast('No se pudo cargar el chat.', true);
   }
+}
+
+// El nombre de perfil es una preferencia puramente local del navegador: se guarda con
+// localStorage (no requiere servidor ni cuenta de usuario).
+function getStoredName(){
+  try{ return localStorage.getItem('pomaire_nombre'); }catch(e){ return null; }
+}
+function setStoredName(name){
+  try{ localStorage.setItem('pomaire_nombre', name); }catch(e){}
+}
+
+async function initChatView(){
+  userName = getStoredName();
 
   if(!userName){
     document.getElementById('nameGate').classList.remove('hidden');
@@ -683,30 +720,35 @@ async function initChatView(){
 
 document.getElementById('saveNameBtn').addEventListener('click', async ()=>{
   const val = document.getElementById('nameInput').value.trim();
-  if(!val){ showToast('Escribe tu nombre'); return; }
+  if(!val){ showToast('Escribe tu nombre', true); return; }
   userName = val;
-  try{
-    await window.storage.set('perfil:nombre', val, false);
-  }catch(e){}
+  setStoredName(val);
   document.getElementById('nameGate').classList.add('hidden');
   document.getElementById('chatArea').classList.remove('hidden');
   await loadMensajes();
   renderMensajes();
   startChatPolling();
 });
+document.getElementById('nameInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('saveNameBtn').click();
+});
 
 async function sendMessage(){
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if(!text) return;
+  const sendBtn = document.getElementById('sendBtn');
   input.value = '';
+  sendBtn.disabled = true;
   try{
+    await apiPost('/api/mensajes', { autor: userName, texto: text });
     await loadMensajes();
-    mensajes.push({ id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), autor:userName, texto:text, ts:Date.now() });
-    await saveMensajes();
     renderMensajes();
   }catch(e){
-    showToast('No se pudo enviar, intenta de nuevo');
+    showToast(e.message || 'No se pudo enviar, intenta de nuevo', true);
+    input.value = text;
+  }finally{
+    sendBtn.disabled = false;
   }
 }
 document.getElementById('sendBtn').addEventListener('click', sendMessage);
@@ -718,9 +760,14 @@ function startChatPolling(){
   if(chatPollTimer) clearInterval(chatPollTimer);
   chatPollTimer = setInterval(async ()=>{
     if(document.getElementById('tab-chat').classList.contains('hidden')) return;
-    const prevLen = mensajes.length;
-    await loadMensajes();
-    if(mensajes.length !== prevLen) renderMensajes();
+    try{
+      const data = await apiGet('/api/mensajes?since=' + lastMsgTs);
+      const nuevos = data.mensajes || [];
+      if(nuevos.length){
+        mensajes = mensajes.concat(nuevos);
+        renderMensajes();
+      }
+    }catch(e){ /* silencioso: se reintenta en el próximo ciclo */ }
   }, 4000);
 }
 
