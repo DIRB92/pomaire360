@@ -1,6 +1,7 @@
 // Utilidades compartidas por las funciones serverless (Vercel).
 // Usa Upstash Redis como base de datos real y compartida entre todos los visitantes.
 const { Redis } = require('@upstash/redis');
+const crypto = require('crypto');
 
 /**
  * Crea el cliente de Redis leyendo las variables de entorno.
@@ -99,6 +100,48 @@ async function addMessage(redis, { autor, texto, system = false }) {
   return mensaje;
 }
 
+/**
+ * Compara dos strings en tiempo constante para evitar "timing attacks" al
+ * validar el token de administrador (evita que un atacante deduzca el
+ * token midiendo cuánto tarda la respuesta carácter por carácter).
+ */
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a || ''));
+  const bufB = Buffer.from(String(b || ''));
+  if (bufA.length !== bufB.length) {
+    // Aun así se compara contra sí mismo para no filtrar el largo por timing.
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Verifica el token de administrador enviado en el header "x-admin-token".
+ * Requiere la variable de entorno ADMIN_TOKEN configurada en Vercel; si no
+ * está configurada, el acceso admin queda deshabilitado por completo (falla
+ * cerrado, no abierto).
+ */
+function checkAdminToken(req) {
+  const expected = process.env.ADMIN_TOKEN;
+  if (!expected) return false;
+  const provided = req.headers['x-admin-token'];
+  if (!provided) return false;
+  return safeEqual(provided, expected);
+}
+
+/** Elimina un emprendimiento por id (documento + índice ordenado). */
+async function deleteNegocio(redis, id) {
+  await redis.zrem('negocios:index', id);
+  await redis.del(`negocio:${id}`);
+}
+
+/** Elimina un mensaje del chat por id (documento + índice ordenado). */
+async function deleteMensaje(redis, id) {
+  await redis.zrem('mensajes:index', id);
+  await redis.del(`mensaje:${id}`);
+}
+
 module.exports = {
   getRedis,
   getClientIp,
@@ -107,5 +150,8 @@ module.exports = {
   checkRateLimit,
   parseMaybeJson,
   addMessage,
+  checkAdminToken,
+  deleteNegocio,
+  deleteMensaje,
   MAX_MENSAJES,
 };

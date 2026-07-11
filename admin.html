@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Pomaire — Panel de moderación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --clay-red:#b5502e;
+    --clay-dark:#6b3520;
+    --charcoal:#2b2622;
+    --cream:#f1e6d3;
+    --cream-2:#e7d7bb;
+    --sage:#6e7a5c;
+    --gold:#c98a34;
+    --danger:#a13a2b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--charcoal);
+    color:var(--cream);
+    font-family:'Work Sans', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    padding:26px 20px;
+    background:linear-gradient(160deg, var(--clay-dark) 0%, var(--clay-red) 60%, var(--clay-dark) 100%);
+    border-bottom:3px solid var(--charcoal);
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:1.5rem;
+    margin:0;
+  }
+  .tagline{
+    font-family:'Space Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-top:6px;
+  }
+  main{max-width:820px;margin:0 auto;padding:24px 16px 80px;}
+  .hidden{display:none !important;}
+
+  /* Gate de acceso */
+  .gate{
+    max-width:360px;margin:60px auto;text-align:center;
+  }
+  .gate p{color:#a89685;font-size:0.88rem;margin-bottom:18px;}
+  input[type=password], input[type=text]{
+    width:100%;
+    padding:11px 12px;
+    border:1.5px solid #4a3c30;
+    border-radius:8px;
+    background:#3a3129;
+    font-family:'Work Sans',sans-serif;
+    font-size:0.95rem;
+    color:var(--cream);
+    margin-bottom:12px;
+  }
+  input:focus{outline:none;border-color:var(--gold);}
+  .btn{
+    padding:12px 18px;
+    border-radius:8px;
+    border:none;
+    font-family:'Work Sans',sans-serif;
+    font-weight:600;
+    font-size:0.9rem;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--clay-red);color:#fff;width:100%;}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .btn-ghost{background:transparent;color:#c9b8a4;border:1.5px solid #4a3c30;}
+  .error-msg{color:#e8a898;font-size:0.85rem;margin-top:8px;min-height:1.2em;}
+
+  /* Panel */
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:10px;}
+  .toolbar .btn{padding:9px 14px;font-size:0.82rem;}
+  h2{
+    font-family:'Fraunces',serif;font-size:1.15rem;
+    margin:26px 0 12px;
+    color:var(--gold);
+  }
+  .item{
+    background:#3a3129;
+    border-radius:8px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .item-body{flex:1;min-width:0;}
+  .item-title{font-weight:600;font-size:0.95rem;margin-bottom:4px;word-break:break-word;}
+  .item-meta{font-family:'Space Mono',monospace;font-size:0.7rem;color:#a89685;margin-bottom:4px;}
+  .item-text{font-size:0.85rem;color:#c9b8a4;white-space:pre-wrap;word-break:break-word;}
+  .empty{color:#8a7867;font-size:0.9rem;padding:20px 0;}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--gold);color:var(--charcoal);
+    padding:10px 18px;border-radius:20px;
+    font-size:0.85rem;font-weight:600;
+    z-index:60;box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    max-width:88vw;text-align:center;
+  }
+  .toast.error{background:var(--danger);color:#fff;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pomaire — Panel de moderación</h1>
+  <div class="tagline">Acceso restringido</div>
+</header>
+
+<main>
+  <div id="gate" class="gate">
+    <p>Ingresa el token de administrador para gestionar publicaciones y mensajes del chat.</p>
+    <input type="password" id="tokenInput" placeholder="Token de administrador" autocomplete="off">
+    <button class="btn btn-primary" id="enterBtn">Entrar</button>
+    <div class="error-msg" id="gateError"></div>
+  </div>
+
+  <div id="panel" class="hidden">
+    <div class="toolbar">
+      <button class="btn btn-ghost" id="refreshBtn">↻ Actualizar</button>
+      <button class="btn btn-ghost" id="logoutBtn">Salir</button>
+    </div>
+
+    <h2>Emprendimientos (<span id="countNegocios">0</span>)</h2>
+    <div id="listNegocios"></div>
+
+    <h2>Mensajes del chat (<span id="countMensajes">0</span>)</h2>
+    <div id="listMensajes"></div>
+  </div>
+</main>
+
+<script>
+// El token se guarda solo en sessionStorage (se borra al cerrar la pestaña/navegador),
+// nunca en localStorage ni en la URL, y se envía siempre por header, no por query string.
+let adminToken = null;
+
+function esc(s){
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+function fmtTime(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+}
+
+function showToast(msg, isError){
+  const t = document.createElement('div');
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2600);
+}
+
+async function apiCall(url, method){
+  const res = await fetch(url, { method, headers: { 'x-admin-token': adminToken } });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || ('Error ' + res.status));
+  return data;
+}
+
+function getStoredToken(){
+  try{ return sessionStorage.getItem('pomaire_admin_token'); }catch(e){ return null; }
+}
+function setStoredToken(t){
+  try{ sessionStorage.setItem('pomaire_admin_token', t); }catch(e){}
+}
+function clearStoredToken(){
+  try{ sessionStorage.removeItem('pomaire_admin_token'); }catch(e){}
+}
+
+async function tryEnter(token){
+  adminToken = token;
+  const errEl = document.getElementById('gateError');
+  errEl.textContent = '';
+  try{
+    await loadData();
+    setStoredToken(token);
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+  }catch(e){
+    adminToken = null;
+    errEl.textContent = e.message || 'Token inválido.';
+  }
+}
+
+document.getElementById('enterBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('tokenInput').value.trim();
+  if(!val){ document.getElementById('gateError').textContent = 'Ingresa un token.'; return; }
+  tryEnter(val);
+});
+document.getElementById('tokenInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('enterBtn').click();
+});
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  adminToken = null;
+  clearStoredToken();
+  document.getElementById('panel').classList.add('hidden');
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('tokenInput').value = '';
+});
+document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+async function loadData(){
+  const data = await apiCall('/api/moderar', 'GET');
+  renderNegocios(data.negocios || []);
+  renderMensajes(data.mensajes || []);
+}
+
+function renderNegocios(negocios){
+  document.getElementById('countNegocios').textContent = negocios.length;
+  const wrap = document.getElementById('listNegocios');
+  if(!negocios.length){
+    wrap.innerHTML = '<div class="empty">No hay emprendimientos publicados.</div>';
+    return;
+  }
+  wrap.innerHTML = negocios.map(n => `
+    <div class="item">
+      <div class="item-body">
+        <div class="item-title">${esc(n.nombre)} <span style="color:#8a7867;font-weight:400;">— ${esc(n.categoria)}</span></div>
+        <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}</div>
+        <div class="item-text">${esc(n.descripcion)}</div>
+      </div>
+      <button class="btn btn-danger" data-tipo="negocio" data-id="${esc(n.id)}">Borrar</button>
+    </div>
+  `).join('');
+}
+
+function renderMensajes(mensajes){
+  document.getElementById('countMensajes').textContent = mensajes.length;
+  const wrap = document.getElementById('listMensajes');
+  if(!mensajes.length){
+    wrap.innerHTML = '<div class="empty">No hay mensajes en el chat.</div>';
+    return;
+  }
+  wrap.innerHTML = mensajes.map(m => `
+    <div class="item">
+      <div class="item-body">
+        <div class="item-title">${esc(m.autor)}${m.system ? ' <span style="color:#8a7867;font-weight:400;">(sistema)</span>' : ''}</div>
+        <div class="item-meta">${fmtTime(m.ts)}</div>
+        <div class="item-text">${esc(m.texto)}</div>
+      </div>
+      <button class="btn btn-danger" data-tipo="mensaje" data-id="${esc(m.id)}">Borrar</button>
+    </div>
+  `).join('');
+}
+
+document.getElementById('panel').addEventListener('click', async (e)=>{
+  const btn = e.target.closest('button[data-tipo]');
+  if(!btn) return;
+  const tipo = btn.dataset.tipo;
+  const id = btn.dataset.id;
+  if(!confirm('¿Eliminar este ' + (tipo==='negocio' ? 'emprendimiento' : 'mensaje') + '? Esta acción no se puede deshacer.')) return;
+
+  btn.disabled = true;
+  try{
+    await apiCall(`/api/moderar?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, 'DELETE');
+    showToast('Eliminado correctamente.');
+    await loadData();
+  }catch(err){
+    showToast(err.message || 'No se pudo eliminar.', true);
+    btn.disabled = false;
+  }
+});
+
+/* ---------------- Init: reintenta con el token guardado en esta pestaña ---------------- */
+(function init(){
+  const stored = getStoredToken();
+  if(stored){
+    document.getElementById('tokenInput').value = stored;
+    tryEnter(stored);
+  }
+})();
+</script>
+</body>
+</html>

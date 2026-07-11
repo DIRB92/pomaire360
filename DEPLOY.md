@@ -52,7 +52,35 @@ en el navegador: debe responder `{"negocios":[]}` (JSON), no un error 500.
 4. Vuelve a Vercel (**Settings > Domains**) y confirma que el dominio queda marcado
    como **Valid Configuration**.
 
-## 5. Verificación final
+## 5. Habilitar el panel de moderación (admin.html)
+
+La app incluye un panel de moderación en `/admin.html` para borrar publicaciones
+o mensajes inapropiados sin tener que entrar manualmente a la consola de Upstash.
+
+1. Genera un token secreto largo y aleatorio, por ejemplo ejecutando en tu máquina:
+   ```bash
+   openssl rand -hex 32
+   ```
+2. En Vercel: **Settings > Environment Variables** → agrega `ADMIN_TOKEN` con ese valor
+   (marca los 3 entornos: Production, Preview, Development).
+3. Haz **Redeploy** para que la función `api/moderar.js` tome la variable nueva.
+4. Entra a `https://comprayvende.pomaire360.cl/admin.html`, ingresa el token y podrás
+   ver y borrar emprendimientos y mensajes.
+
+Notas de seguridad de este panel:
+- Sin `ADMIN_TOKEN` configurado, el endpoint `/api/moderar` responde `401` siempre
+  (falla cerrado, no abierto).
+- El token se guarda solo en `sessionStorage` del navegador (se borra al cerrar la
+  pestaña), nunca en la URL ni en `localStorage`.
+- `/api/moderar` tiene su propio límite de intentos por IP (30 solicitudes/minuto)
+  para dificultar ataques de fuerza bruta contra el token.
+- Guarda el token en un gestor de contraseñas; cualquiera que lo tenga puede borrar
+  contenido. Si se filtra, genera uno nuevo y actualiza la variable en Vercel.
+- `admin.html` no está enlazado desde `index.html` ni indexado (`<meta name="robots"
+  content="noindex, nofollow">`), pero al ser un sitio público la URL no es secreta
+  por sí sola — la seguridad real la da el token, no la "URL oculta".
+
+## 6. Verificación final
 
 - `https://comprayvende.pomaire360.cl/` carga la app.
 - `https://comprayvende.pomaire360.cl/api/negocios` responde JSON.
