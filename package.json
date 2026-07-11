@@ -1,0 +1,9 @@
+{
+  "name": "pomaire360-comprayvende",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Directorio de emprendimientos y chat comunitario de Pomaire (comprayvende.pomaire360.cl)",
+  "dependencies": {
+    "@upstash/redis": "^1.38.0"
+  }
+}
