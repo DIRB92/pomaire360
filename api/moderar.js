@@ -19,7 +19,7 @@ const {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, PUT, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
@@ -87,6 +87,42 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.setHeader('Allow', 'GET, DELETE, OPTIONS');
+  if (req.method === 'PUT') {
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      const id = body.id;
+      if (!id) return res.status(400).json({ error: 'Se requiere el id del emprendimiento.' });
+
+      // Obtener el negocio existente
+      const existing = await redis.get(`negocio:${id}`);
+      if (!existing) return res.status(404).json({ error: 'Emprendimiento no encontrado.' });
+
+      const negocio = typeof existing === 'string' ? JSON.parse(existing) : existing;
+
+      // Solo actualizar campos enviados (merge parcial)
+      const { cleanString, isSafeUrl } = require('./_utils');
+      const CATEGORIAS = ['Artesanía en greda','Comida y cocinería','Hospedaje','Turismo y paseos','Otro'];
+
+      if (body.nombre !== undefined) negocio.nombre = cleanString(body.nombre, 60) || negocio.nombre;
+      if (body.categoria !== undefined && CATEGORIAS.includes(body.categoria)) negocio.categoria = body.categoria;
+      if (body.descripcion !== undefined) negocio.descripcion = cleanString(body.descripcion, 300) || negocio.descripcion;
+      if (body.contacto !== undefined) negocio.contacto = cleanString(body.contacto, 80) || negocio.contacto;
+      if (body.autor !== undefined) negocio.autor = cleanString(body.autor, 40) || negocio.autor;
+      if (body.imagen !== undefined) {
+        const imgClean = cleanString(body.imagen, 500);
+        negocio.imagen = isSafeUrl(imgClean) ? imgClean : '';
+      }
+
+      negocio.editado = Date.now();
+
+      await redis.set(`negocio:${id}`, JSON.stringify(negocio));
+
+      return res.status(200).json({ negocio });
+    } catch (e) {
+      return res.status(500).json({ error: 'No se pudo editar el emprendimiento.' });
+    }
+  }
+
+  res.setHeader('Allow', 'GET, DELETE, PUT, OPTIONS');
   return res.status(405).json({ error: 'Método no permitido' });
 };

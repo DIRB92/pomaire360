@@ -144,6 +144,49 @@
   </div>
 </main>
 
+<!-- MODAL EDITAR -->
+<div class="hidden" id="editModal" style="position:fixed;inset:0;background:rgba(20,15,10,0.8);z-index:50;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--cream);color:var(--charcoal);width:100%;max-width:500px;border-radius:12px;padding:22px 20px 26px;max-height:90vh;overflow-y:auto;">
+    <h2 style="font-family:'Fraunces',serif;font-size:1.2rem;margin:0 0 14px;color:var(--clay-dark);">✏️ Editar emprendimiento</h2>
+
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Nombre</label>
+    <input type="text" id="eNombre" maxlength="60" style="width:100%;padding:10px 12px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;">
+
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Categoría</label>
+    <select id="eCategoria" style="width:100%;padding:10px 12px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;">
+      <option value="Artesanía en greda">Artesanía en greda</option>
+      <option value="Comida y cocinería">Comida y cocinería</option>
+      <option value="Hospedaje">Hospedaje</option>
+      <option value="Turismo y paseos">Turismo y paseos</option>
+      <option value="Otro">Otro</option>
+    </select>
+
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Descripción</label>
+    <textarea id="eDesc" rows="3" maxlength="300" style="width:100%;padding:10px 12px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;resize:vertical;"></textarea>
+
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Contacto</label>
+    <input type="text" id="eContacto" maxlength="80" style="width:100%;padding:10px 12px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;">
+
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Foto</label>
+    <div class="img-area" id="editImgArea" style="border:2px dashed #d8c7ac;border-radius:8px;padding:16px;text-align:center;cursor:pointer;position:relative;">
+      <input type="file" id="editImgFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+      <div class="img-hint" id="editImgHint" style="color:#9c8a76;font-size:0.85rem;">📷 Clic para cambiar imagen</div>
+      <img class="hidden" id="editImgPreview" alt="Preview" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;">
+      <button type="button" class="img-remove hidden" id="editImgRemove" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:var(--danger);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.8rem;">✕</button>
+    </div>
+
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Autor</label>
+    <input type="text" id="eAutor" maxlength="40" style="width:100%;padding:10px 12px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;">
+
+    <div class="error-msg" id="editFormError" style="color:var(--danger);font-size:0.8rem;margin-top:10px;"></div>
+
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn btn-ghost" id="editCancelBtn" style="flex:1;padding:12px;">Cancelar</button>
+      <button class="btn btn-primary" id="editSaveBtn" style="flex:1;padding:12px;">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // El token se guarda solo en sessionStorage (se borra al cerrar la pestaña/navegador),
 // nunca en localStorage ni en la URL, y se envía siempre por header, no por query string.
@@ -168,8 +211,13 @@ function showToast(msg, isError){
   setTimeout(()=>t.remove(), 2600);
 }
 
-async function apiCall(url, method){
-  const res = await fetch(url, { method, headers: { 'x-admin-token': adminToken } });
+async function apiCall(url, method, body){
+  const opts = { method, headers: { 'x-admin-token': adminToken } };
+  if(body){
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opts);
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error || ('Error ' + res.status));
   return data;
@@ -223,7 +271,10 @@ async function loadData(){
   renderMensajes(data.mensajes || []);
 }
 
+let allNegocios = [];
+
 function renderNegocios(negocios){
+  allNegocios = negocios;
   document.getElementById('countNegocios').textContent = negocios.length;
   const wrap = document.getElementById('listNegocios');
   if(!negocios.length){
@@ -233,11 +284,15 @@ function renderNegocios(negocios){
   wrap.innerHTML = negocios.map(n => `
     <div class="item">
       <div class="item-body">
+        ${n.imagen ? `<img src="${esc(n.imagen)}" alt="${esc(n.nombre)}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` : ''}
         <div class="item-title">${esc(n.nombre)} <span style="color:#8a7867;font-weight:400;">— ${esc(n.categoria)}</span></div>
-        <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}</div>
+        <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}${n.editado ? ' · ✏️ editado' : ''}</div>
         <div class="item-text">${esc(n.descripcion)}</div>
       </div>
-      <button class="btn btn-danger" data-tipo="negocio" data-id="${esc(n.id)}">Borrar</button>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <button class="btn btn-ghost" data-edit-id="${esc(n.id)}" style="font-size:0.78rem;padding:8px 12px;">✏️ Editar</button>
+        <button class="btn btn-danger" data-tipo="negocio" data-id="${esc(n.id)}">Borrar</button>
+      </div>
     </div>
   `).join('');
 }
@@ -261,23 +316,7 @@ function renderMensajes(mensajes){
   `).join('');
 }
 
-document.getElementById('panel').addEventListener('click', async (e)=>{
-  const btn = e.target.closest('button[data-tipo]');
-  if(!btn) return;
-  const tipo = btn.dataset.tipo;
-  const id = btn.dataset.id;
-  if(!confirm('¿Eliminar este ' + (tipo==='negocio' ? 'emprendimiento' : 'mensaje') + '? Esta acción no se puede deshacer.')) return;
-
-  btn.disabled = true;
-  try{
-    await apiCall(`/api/moderar?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, 'DELETE');
-    showToast('Eliminado correctamente.');
-    await loadData();
-  }catch(err){
-    showToast(err.message || 'No se pudo eliminar.', true);
-    btn.disabled = false;
-  }
-});
+/* (delete handler is now in the edit section above) */
 
 /* ---------------- Init: reintenta con el token guardado en esta pestaña ---------------- */
 (function init(){
@@ -287,6 +326,164 @@ document.getElementById('panel').addEventListener('click', async (e)=>{
     tryEnter(stored);
   }
 })();
+
+/* ──────────── EDITAR EMPRENDIMIENTO ──────────── */
+let editingId = null;
+let editUploadedUrl = '';
+
+// Delegación: clic en "Editar"
+document.getElementById('panel').addEventListener('click', async (e)=>{
+  const editBtn = e.target.closest('button[data-edit-id]');
+  if(editBtn){
+    const id = editBtn.dataset.editId;
+    openEditModal(id);
+    return;
+  }
+
+  const delBtn = e.target.closest('button[data-tipo]');
+  if(!delBtn) return;
+  const tipo = delBtn.dataset.tipo;
+  const id = delBtn.dataset.id;
+  if(!confirm('¿Eliminar este ' + (tipo==='negocio' ? 'emprendimiento' : 'mensaje') + '? Esta acción no se puede deshacer.')) return;
+
+  delBtn.disabled = true;
+  try{
+    await apiCall(`/api/moderar?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, 'DELETE');
+    showToast('Eliminado correctamente.');
+    await loadData();
+  }catch(err){
+    showToast(err.message || 'No se pudo eliminar.', true);
+    delBtn.disabled = false;
+  }
+});
+
+function openEditModal(id){
+  const n = allNegocios.find(x => x.id === id);
+  if(!n) return;
+  editingId = id;
+  editUploadedUrl = n.imagen || '';
+
+  document.getElementById('eNombre').value = n.nombre || '';
+  document.getElementById('eCategoria').value = n.categoria || 'Otro';
+  document.getElementById('eDesc').value = n.descripcion || '';
+  document.getElementById('eContacto').value = n.contacto || '';
+  document.getElementById('eAutor').value = n.autor || '';
+  document.getElementById('editFormError').textContent = '';
+
+  // Imagen
+  const preview = document.getElementById('editImgPreview');
+  const hint = document.getElementById('editImgHint');
+  const removeBtn = document.getElementById('editImgRemove');
+  if(n.imagen){
+    preview.src = n.imagen;
+    preview.classList.remove('hidden');
+    removeBtn.classList.remove('hidden');
+    hint.classList.add('hidden');
+    document.getElementById('editImgArea').classList.add('has-img');
+  }else{
+    preview.src = '';
+    preview.classList.add('hidden');
+    removeBtn.classList.add('hidden');
+    hint.classList.remove('hidden');
+    document.getElementById('editImgArea').classList.remove('has-img');
+  }
+
+  document.getElementById('editModal').classList.remove('hidden');
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').classList.add('hidden');
+  document.getElementById('editModal').style.display = '';
+  editingId = null;
+  editUploadedUrl = '';
+}
+
+document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+document.getElementById('editModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'editModal') closeEditModal();
+});
+
+// Image upload in edit modal
+const editImgArea = document.getElementById('editImgArea');
+const editImgFile = document.getElementById('editImgFile');
+const editImgPreview = document.getElementById('editImgPreview');
+const editImgHint = document.getElementById('editImgHint');
+const editImgRemove = document.getElementById('editImgRemove');
+
+editImgArea.addEventListener('click', (e)=>{
+  if(e.target === editImgRemove || e.target.closest('.img-remove')) return;
+  editImgFile.click();
+});
+
+editImgFile.addEventListener('change', async ()=>{
+  const file = editImgFile.files[0];
+  if(!file) return;
+  if(file.size > 4*1024*1024){ showToast('Máximo 4 MB.', true); return; }
+  if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){ showToast('Solo JPEG/PNG/WebP/GIF.', true); return; }
+
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    editImgPreview.src = ev.target.result;
+    editImgPreview.classList.remove('hidden');
+    editImgRemove.classList.remove('hidden');
+    editImgHint.classList.add('hidden');
+    editImgArea.classList.add('has-img');
+  };
+  reader.readAsDataURL(file);
+
+  try{
+    const res = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':file.type}, body:file });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error);
+    editUploadedUrl = data.url;
+    showToast('Imagen actualizada ✓');
+  }catch(e){
+    showToast(e.message || 'Error al subir', true);
+  }
+});
+
+editImgRemove.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  editUploadedUrl = '';
+  editImgFile.value = '';
+  editImgPreview.src = '';
+  editImgPreview.classList.add('hidden');
+  editImgRemove.classList.add('hidden');
+  editImgHint.classList.remove('hidden');
+  editImgArea.classList.remove('has-img');
+});
+
+// Guardar edición
+document.getElementById('editSaveBtn').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('eNombre').value.trim();
+  const categoria = document.getElementById('eCategoria').value;
+  const descripcion = document.getElementById('eDesc').value.trim();
+  const contacto = document.getElementById('eContacto').value.trim();
+  const autor = document.getElementById('eAutor').value.trim();
+  const imagen = editUploadedUrl;
+  const errEl = document.getElementById('editFormError');
+
+  errEl.textContent = '';
+  if(!nombre || !descripcion || !contacto){
+    errEl.textContent = 'Completa nombre, descripción y contacto.';
+    return;
+  }
+
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  try{
+    await apiCall('/api/moderar', 'PUT', { id: editingId, nombre, categoria, descripcion, contacto, autor, imagen });
+    showToast('✏️ Emprendimiento actualizado.');
+    closeEditModal();
+    await loadData();
+  }catch(e){
+    errEl.textContent = e.message || 'Error al guardar.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+  }
+});
 </script>
 </body>
 </html>
