@@ -1,5 +1,8 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/upload.js": { "maxDuration": 30 }
+  }
 }
