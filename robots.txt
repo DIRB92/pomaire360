@@ -1,0 +1,8 @@
+# robots.txt — Pomaire Compra y Venta (comprayvende.pomaire360.cl)
+
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /api/moderar
+
+Sitemap: https://comprayvende.pomaire360.cl/sitemap.xml
