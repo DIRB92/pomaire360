@@ -1,10 +1,47 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" prefix="og: https://ogp.me/ns#">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pomaire Compra y Venta</title>
-<meta name="description" content="Directorio de emprendimientos y chat comunitario de Pomaire. Publica tu negocio gratis y conversa con la comunidad.">
+<meta name="theme-color" content="#b5502e">
+
+<!-- SEO -->
+<title>Compra y Venta en Pomaire — Publica tu negocio gratis | Pomaire 360</title>
+<meta name="description" content="Directorio gratuito de emprendimientos locales en Pomaire, Chile. Publica tu artesanía, restaurante o servicio y conversa con la comunidad en el chat del pueblo.">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="author" content="Pomaire 360">
+<meta name="geo.region" content="CL-RM">
+<meta name="geo.placename" content="Pomaire, Melipilla, Chile">
+<link rel="canonical" href="https://comprayvende.pomaire360.cl/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pomaire 360 — Compra y Venta">
+<meta property="og:title" content="Compra y Venta en Pomaire — Publica tu negocio gratis">
+<meta property="og:description" content="Directorio gratuito de emprendimientos locales en Pomaire. Artesanía, comida, hospedaje y más. Chat comunitario incluido.">
+<meta property="og:url" content="https://comprayvende.pomaire360.cl/">
+<meta property="og:locale" content="es_CL">
+<meta property="og:image" content="https://www.pomaire360.cl/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Pomaire Compra y Venta — Directorio de emprendimientos locales">
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Compra y Venta en Pomaire — Publica tu negocio gratis">
+<meta name="twitter:description" content="Directorio gratuito de emprendimientos y chat comunitario de Pomaire, Chile.">
+<meta name="twitter:image" content="https://www.pomaire360.cl/og-image.jpg">
+
+<!-- Favicon -->
+<link rel="icon" href="https://www.pomaire360.cl/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="https://www.pomaire360.cl/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="https://www.pomaire360.cl/favicon-96x96.png">
+<link rel="apple-touch-icon" href="https://www.pomaire360.cl/apple-touch-icon.png">
+
+<!-- JSON-LD -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"Pomaire Compra y Venta","url":"https://comprayvende.pomaire360.cl/","description":"Directorio gratuito de emprendimientos locales y chat comunitario de Pomaire, Chile.","inLanguage":"es-CL","isPartOf":{"@type":"WebSite","name":"Pomaire 360","url":"https://www.pomaire360.cl/"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -386,6 +423,150 @@
     max-width:88vw;text-align:center;
   }
   .toast.error{background:var(--danger);color:#fff;}
+
+  /* ---------- Image upload ---------- */
+  .img-upload-area{
+    position:relative;
+    border:2px dashed #d8c7ac;
+    border-radius:10px;
+    overflow:hidden;
+    cursor:pointer;
+    transition:border-color 0.15s;
+  }
+  .img-upload-area:hover{border-color:var(--clay-red);}
+  .img-upload-placeholder{
+    padding:28px 16px;
+    text-align:center;
+    color:#9c8a76;
+    font-size:0.88rem;
+  }
+  .img-upload-placeholder span{font-size:1.4rem;vertical-align:middle;margin-right:6px;}
+  .img-upload-preview{
+    width:100%;
+    max-height:200px;
+    object-fit:cover;
+    display:block;
+  }
+  .img-upload-remove{
+    position:absolute;
+    top:8px;right:8px;
+    width:28px;height:28px;
+    border-radius:50%;
+    background:var(--danger);
+    color:#fff;
+    border:none;
+    font-size:0.85rem;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .img-uploading .img-upload-placeholder{
+    color:var(--clay-red);
+    font-weight:600;
+  }
+
+  /* ---------- Search bar ---------- */
+  .search-bar{
+    position:relative;
+    margin-bottom:12px;
+  }
+  .search-bar input{
+    width:100%;
+    padding:11px 14px 11px 38px;
+    border:1.5px solid #4a3c30;
+    border-radius:22px;
+    background:#3a3129;
+    color:var(--cream);
+    font-family:'Work Sans',sans-serif;
+    font-size:0.9rem;
+  }
+  .search-bar input::placeholder{color:#8a7867;}
+  .search-bar input:focus{outline:none;border-color:var(--gold);}
+  .search-bar::before{
+    content:'🔍';
+    position:absolute;
+    left:13px;top:50%;
+    transform:translateY(-50%);
+    font-size:0.85rem;
+    pointer-events:none;
+  }
+
+  /* ---------- Footer ---------- */
+  .site-footer{
+    background:#1e1a17;
+    border-top:1px solid #3a3129;
+    padding:28px 20px 22px;
+    text-align:center;
+  }
+  .footer-links{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:8px 16px;
+    margin-bottom:14px;
+  }
+  .footer-links a{
+    color:var(--gold);
+    text-decoration:none;
+    font-size:0.82rem;
+    font-family:'Space Mono',monospace;
+    transition:color 0.15s;
+  }
+  .footer-links a:hover{color:var(--cream);}
+  .footer-credit{
+    font-size:0.72rem;
+    color:#6b5a48;
+    margin-top:10px;
+  }
+  .footer-credit a{color:#a89685;text-decoration:none;}
+
+  /* ---------- Load more ---------- */
+  .load-more-wrap{text-align:center;margin:18px 0;}
+  .load-more-btn{
+    padding:10px 22px;
+    border-radius:20px;
+    border:1.5px solid #4a3c30;
+    background:transparent;
+    color:#c9b8a4;
+    font-family:'Work Sans',sans-serif;
+    font-size:0.85rem;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .load-more-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+  /* ---------- WhatsApp button in cards ---------- */
+  .card-wa{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    background:#25d366;
+    color:#fff;
+    border:none;
+    border-radius:16px;
+    padding:5px 12px;
+    font-size:0.78rem;
+    font-weight:600;
+    font-family:'Work Sans',sans-serif;
+    text-decoration:none;
+    cursor:pointer;
+    transition:background 0.15s;
+  }
+  .card-wa:hover{background:#1fb855;}
+
+  /* ---------- Back link ---------- */
+  .back-link{
+    display:inline-block;
+    margin-top:14px;
+    font-size:0.82rem;
+    color:var(--gold);
+    text-decoration:none;
+    font-family:'Space Mono', monospace;
+    letter-spacing:0.02em;
+    position:relative;
+    z-index:1;
+    transition:color 0.15s;
+  }
+  .back-link:hover{color:var(--cream);}
 </style>
 </head>
 <body>
@@ -410,6 +591,7 @@
     </div>
   </div>
   <p class="subhead">Publica tu emprendimiento gratis y conversa en el chat del pueblo. Hecho por y para la gente de Pomaire.</p>
+  <a href="https://www.pomaire360.cl/" class="back-link">← Volver a Pomaire 360</a>
 </header>
 
 <nav>
@@ -420,6 +602,9 @@
 <main>
   <!-- NEGOCIOS TAB -->
   <section id="tab-negocios">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Buscar emprendimiento…" maxlength="60">
+    </div>
     <div class="chips" id="chips"></div>
     <div id="negociosList"></div>
   </section>
@@ -468,8 +653,16 @@
     <label for="fContacto">Contacto (WhatsApp, Instagram, teléfono)</label>
     <input type="text" id="fContacto" placeholder="Ej: +56 9 1234 5678" maxlength="80">
 
-    <label for="fImg">Link de una foto (opcional)</label>
-    <input type="text" id="fImg" placeholder="https://…" maxlength="500">
+    <label for="fImgFile">Foto del negocio (opcional · máx 4 MB)</label>
+    <div class="img-upload-area" id="imgUploadArea">
+      <input type="file" id="fImgFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+      <div class="img-upload-placeholder" id="imgPlaceholder">
+        <span>📷</span> Toca para elegir una imagen
+      </div>
+      <img class="img-upload-preview hidden" id="imgPreview" alt="Preview">
+      <button type="button" class="img-upload-remove hidden" id="imgRemoveBtn">✕</button>
+    </div>
+    <input type="hidden" id="fImg" value="">
 
     <label for="fAutor">Tu nombre</label>
     <input type="text" id="fAutor" placeholder="Ej: Familia Vergara" maxlength="40">
@@ -483,21 +676,52 @@
   </div>
 </div>
 
+<footer class="site-footer">
+  <div class="footer-links">
+    <a href="https://www.pomaire360.cl/">🏺 Pomaire 360</a>
+    <a href="https://www.pomaire360.cl/alfareria/">Alfarería</a>
+    <a href="https://www.pomaire360.cl/gastronomia/">Gastronomía</a>
+    <a href="https://www.pomaire360.cl/alojamientos/">Alojamientos</a>
+    <a href="https://www.pomaire360.cl/#mapa">Mapa</a>
+    <a href="https://www.pomaire360.cl/anunciate/">Anúnciate</a>
+  </div>
+  <div class="footer-credit">
+    Parte de <a href="https://www.pomaire360.cl/">Pomaire 360</a> · Guía del pueblo alfarero de Chile
+  </div>
+</footer>
+
 <script>
 const CATS = ["Todos","Artesanía en greda","Comida y cocinería","Hospedaje","Turismo y paseos","Otro"];
 let negocios = [];
 let mensajes = [];
 let activeCat = "Todos";
+let searchQuery = "";
 let userName = null;
 let lastMsgTs = 0;
 let chatPollTimer = null;
+const PAGE_SIZE = 12;
+let currentPage = 1;
+let uploadedImageUrl = '';
 
 /* ---------------- Helpers de seguridad y formato ---------------- */
-// Escapa texto para insertarlo de forma segura dentro de HTML (nodos de texto).
 function esc(s){
   const d = document.createElement('div');
   d.textContent = s == null ? '' : String(s);
   return d.innerHTML;
+}
+
+// Extrae un número de teléfono chileno y retorna la URL de WhatsApp, o null.
+function extractWhatsApp(contacto){
+  if(!contacto) return null;
+  const cleaned = contacto.replace(/[\s\-().]/g, '');
+  let match = cleaned.match(/(?:\+?56)?9\d{8}/);
+  if(match){
+    let num = match[0].replace(/^\+/, '');
+    if(num.startsWith('9') && num.length === 9) num = '56' + num;
+    if(!num.startsWith('56')) num = '56' + num;
+    return 'https://wa.me/' + num;
+  }
+  return null;
 }
 
 function fmtTime(ts){
@@ -539,6 +763,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     const tab = btn.dataset.tab;
     document.getElementById('tab-negocios').classList.toggle('hidden', tab!=='negocios');
     document.getElementById('tab-chat').classList.toggle('hidden', tab!=='chat');
+    document.getElementById('fabBtn').classList.toggle('hidden', tab!=='negocios');
     if(tab==='chat'){
       initChatView();
     }
@@ -553,10 +778,17 @@ function renderChips(){
     const c = document.createElement('button');
     c.className = 'chip' + (cat===activeCat ? ' active' : '');
     c.textContent = cat;
-    c.addEventListener('click', ()=>{ activeCat = cat; renderChips(); renderNegocios(); });
+    c.addEventListener('click', ()=>{ activeCat = cat; currentPage = 1; renderChips(); renderNegocios(); });
     wrap.appendChild(c);
   });
 }
+
+/* ---------------- Search ---------------- */
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  searchQuery = e.target.value.trim();
+  currentPage = 1;
+  renderNegocios();
+});
 
 /* ---------------- Negocios: API real (Vercel + Redis) ---------------- */
 async function loadNegocios(){
@@ -574,23 +806,41 @@ function renderNegocios(){
   const list = document.getElementById('negociosList');
   const countEl = document.getElementById('countNegocios');
   countEl.textContent = negocios.length ? `(${negocios.length})` : '';
-  const filtered = activeCat==='Todos' ? negocios : negocios.filter(n=>n.categoria===activeCat);
+
+  // Filter by category
+  let filtered = activeCat==='Todos' ? negocios : negocios.filter(n=>n.categoria===activeCat);
+
+  // Filter by search query
+  if(searchQuery){
+    const q = searchQuery.toLowerCase();
+    filtered = filtered.filter(n =>
+      (n.nombre && n.nombre.toLowerCase().includes(q)) ||
+      (n.descripcion && n.descripcion.toLowerCase().includes(q)) ||
+      (n.autor && n.autor.toLowerCase().includes(q)) ||
+      (n.categoria && n.categoria.toLowerCase().includes(q))
+    );
+  }
+
   const sorted = [...filtered].sort((a,b)=>b.creado - a.creado);
 
   if(sorted.length===0){
     list.innerHTML = `
       <div class="empty-state">
         <div class="ring"><svg viewBox="0 0 60 60"><g fill="none" stroke="#c98a34" stroke-width="2"><circle cx="30" cy="30" r="27"/><circle cx="30" cy="30" r="14"/></g></svg></div>
-        <strong>Aún no hay publicaciones aquí</strong>
-        <p>Sé el primero en mostrar tu emprendimiento a la comunidad. Toca el botón + para publicar.</p>
+        <strong>${searchQuery ? 'Sin resultados' : 'Aún no hay publicaciones aquí'}</strong>
+        <p>${searchQuery ? 'Intenta con otros términos de búsqueda.' : 'Sé el primero en mostrar tu emprendimiento a la comunidad. Toca el botón + para publicar.'}</p>
       </div>`;
     return;
   }
 
-  // Todo el texto se inserta con esc() (nodos de texto). El contacto NO se pone en un
-  // atributo/onclick inline: se guarda en data-contacto y se lee vía dataset, evitando
-  // cualquier fuga de comillas hacia HTML o JavaScript inline (XSS).
-  list.innerHTML = sorted.map(n => `
+  // Pagination
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paginated = sorted.slice(0, currentPage * PAGE_SIZE);
+
+  list.innerHTML = paginated.map(n => {
+    const waUrl = extractWhatsApp(n.contacto);
+    const waBtn = waUrl ? `<a class="card-wa" href="${esc(waUrl)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : '';
+    return `
     <div class="card">
       ${n.imagen ? `<img class="card-img" src="${esc(n.imagen)}" alt="${esc(n.nombre)}" loading="lazy" onerror="this.style.display='none'">` : ''}
       <div class="card-body">
@@ -602,12 +852,24 @@ function renderNegocios(){
         </div>
         <p class="card-desc">${esc(n.descripcion)}</p>
         <div class="card-foot">
-          <button type="button" class="card-contact" data-contacto="${esc(n.contacto)}">📞 ${esc(n.contacto)}</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="card-contact" data-contacto="${esc(n.contacto)}">📞 ${esc(n.contacto)}</button>
+            ${waBtn}
+          </div>
           <span class="card-author">publicado por ${esc(n.autor)} · ${fmtTime(n.creado)}</span>
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+
+  // Load more button
+  if(currentPage < totalPages){
+    list.innerHTML += `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Mostrar más (${sorted.length - paginated.length} restantes)</button></div>`;
+    document.getElementById('loadMoreBtn').addEventListener('click', ()=>{
+      currentPage++;
+      renderNegocios();
+    });
+  }
 }
 
 // Delegación de eventos: copiar contacto al portapapeles sin usar onclick inline con datos del usuario.
@@ -638,7 +900,7 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
   const categoria = document.getElementById('fCategoria').value;
   const descripcion = document.getElementById('fDesc').value.trim();
   const contacto = document.getElementById('fContacto').value.trim();
-  const imagen = document.getElementById('fImg').value.trim();
+  const imagen = uploadedImageUrl || '';
   const autor = document.getElementById('fAutor').value.trim() || 'Anónimo';
 
   formError.textContent = '';
@@ -655,8 +917,9 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
     await loadNegocios();
 
     overlay.classList.add('hidden');
-    ['fNombre','fDesc','fContacto','fImg','fAutor'].forEach(id=>document.getElementById(id).value='');
+    ['fNombre','fDesc','fContacto','fAutor'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('fCategoria').selectedIndex = 0;
+    resetImageUpload();
     showToast('¡Publicado con éxito!');
   }catch(e){
     formError.textContent = e.message || 'Error al publicar, intenta de nuevo.';
@@ -664,6 +927,82 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
     btn.disabled = false; btn.textContent = 'Publicar';
   }
 });
+
+/* ---------------- Image Upload ---------------- */
+const imgFileInput = document.getElementById('fImgFile');
+const imgPreview = document.getElementById('imgPreview');
+const imgPlaceholder = document.getElementById('imgPlaceholder');
+const imgRemoveBtn = document.getElementById('imgRemoveBtn');
+const imgUploadArea = document.getElementById('imgUploadArea');
+
+imgUploadArea.addEventListener('click', (e)=>{
+  if(e.target === imgRemoveBtn || e.target.closest('.img-upload-remove')) return;
+  imgFileInput.click();
+});
+
+imgFileInput.addEventListener('change', async ()=>{
+  const file = imgFileInput.files[0];
+  if(!file) return;
+
+  if(file.size > 4 * 1024 * 1024){
+    showToast('Imagen muy pesada. Máximo 4 MB.', true);
+    imgFileInput.value = '';
+    return;
+  }
+
+  if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){
+    showToast('Solo se aceptan imágenes JPEG, PNG, WebP o GIF.', true);
+    imgFileInput.value = '';
+    return;
+  }
+
+  // Show local preview immediately
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    imgPreview.src = ev.target.result;
+    imgPreview.classList.remove('hidden');
+    imgRemoveBtn.classList.remove('hidden');
+    imgPlaceholder.classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+
+  // Upload to server
+  imgUploadArea.classList.add('img-uploading');
+  imgPlaceholder.innerHTML = '<span>⏳</span> Subiendo imagen…';
+
+  try{
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Error al subir');
+    uploadedImageUrl = data.url;
+    document.getElementById('fImg').value = data.url;
+  }catch(e){
+    showToast(e.message || 'No se pudo subir la imagen.', true);
+    resetImageUpload();
+  }finally{
+    imgUploadArea.classList.remove('img-uploading');
+  }
+});
+
+imgRemoveBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  resetImageUpload();
+});
+
+function resetImageUpload(){
+  uploadedImageUrl = '';
+  document.getElementById('fImg').value = '';
+  imgFileInput.value = '';
+  imgPreview.src = '';
+  imgPreview.classList.add('hidden');
+  imgRemoveBtn.classList.add('hidden');
+  imgPlaceholder.classList.remove('hidden');
+  imgPlaceholder.innerHTML = '<span>📷</span> Toca para elegir una imagen';
+}
 
 /* ---------------- Chat: API real (Vercel + Redis) ---------------- */
 function renderMensajes(){
