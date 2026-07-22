@@ -282,8 +282,10 @@ function showToast(msg, isError){
   setTimeout(()=>t.remove(), 2600);
 }
 
-async function apiCall(url, method){
-  const res = await fetch(url, { method, headers: { 'x-admin-token': adminToken } });
+async function apiCall(url, method, body){
+  const opts = { method, headers: { 'x-admin-token': adminToken } };
+  if(body){ opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(url, opts);
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error || ('Error ' + res.status));
   return data;
@@ -337,7 +339,10 @@ async function loadData(){
   renderMensajes(data.mensajes || []);
 }
 
+let allNegocios = [];
+
 function renderNegocios(negocios){
+  allNegocios = negocios;
   document.getElementById('countNegocios').textContent = negocios.length;
   const wrap = document.getElementById('listNegocios');
   if(!negocios.length){
@@ -349,10 +354,13 @@ function renderNegocios(negocios){
       <div class="item-body">
         ${n.imagen ? `<img src="${esc(n.imagen)}" alt="${esc(n.nombre)}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` : ''}
         <div class="item-title">${esc(n.nombre)} <span style="color:#8a7867;font-weight:400;">— ${esc(n.categoria)}</span></div>
-        <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}</div>
+        <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}${n.editado ? ' · ✏️ editado' : ''}</div>
         <div class="item-text">${esc(n.descripcion)}</div>
       </div>
-      <button class="btn btn-danger" data-tipo="negocio" data-id="${esc(n.id)}">Borrar</button>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <button class="btn btn-ghost" data-edit-id="${esc(n.id)}" style="font-size:0.78rem;padding:8px 12px;">✏️ Editar</button>
+        <button class="btn btn-danger" data-tipo="negocio" data-id="${esc(n.id)}">Borrar</button>
+      </div>
     </div>
   `).join('');
 }
@@ -377,21 +385,80 @@ function renderMensajes(mensajes){
 }
 
 document.getElementById('panel').addEventListener('click', async (e)=>{
+  const editBtn = e.target.closest('button[data-edit-id]');
+  if(editBtn){ openEditModal(editBtn.dataset.editId); return; }
+
   const btn = e.target.closest('button[data-tipo]');
   if(!btn) return;
   const tipo = btn.dataset.tipo;
   const id = btn.dataset.id;
-  if(!confirm('¿Eliminar este ' + (tipo==='negocio' ? 'emprendimiento' : 'mensaje') + '? Esta acción no se puede deshacer.')) return;
-
+  if(!confirm('¿Eliminar este ' + (tipo==='negocio' ? 'emprendimiento' : 'mensaje') + '?')) return;
   btn.disabled = true;
   try{
     await apiCall(`/api/moderar?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, 'DELETE');
-    showToast('Eliminado correctamente.');
+    showToast('Eliminado.');
     await loadData();
   }catch(err){
-    showToast(err.message || 'No se pudo eliminar.', true);
+    showToast(err.message, true);
     btn.disabled = false;
   }
+});
+
+/* ──────── EDITAR ──────── */
+let editingId = null, editImgUrl = '';
+
+function openEditModal(id){
+  const n = allNegocios.find(x=>x.id===id);
+  if(!n) return;
+  editingId = id;
+  editImgUrl = n.imagen || '';
+  document.getElementById('eNombre').value = n.nombre||'';
+  document.getElementById('eCategoria').value = n.categoria||'Otro';
+  document.getElementById('eDesc').value = n.descripcion||'';
+  document.getElementById('eContacto').value = n.contacto||'';
+  document.getElementById('eAutor').value = n.autor||'';
+  document.getElementById('editErr').textContent = '';
+  const prev = document.getElementById('eImgPrev');
+  if(n.imagen){ prev.src=n.imagen; prev.style.display='block'; } else { prev.src=''; prev.style.display='none'; }
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+document.getElementById('editCloseBtn').addEventListener('click', ()=>{ document.getElementById('editModal').style.display='none'; });
+document.getElementById('editModal').addEventListener('click', (e)=>{ if(e.target.id==='editModal') document.getElementById('editModal').style.display='none'; });
+
+document.getElementById('eImgFile').addEventListener('change', async function(){
+  const file = this.files[0];
+  if(!file) return;
+  if(file.size>4*1024*1024){ showToast('Máx 4MB',true); return; }
+  try{
+    const res = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':file.type},body:file});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error);
+    editImgUrl = data.url;
+    document.getElementById('eImgPrev').src = data.url;
+    document.getElementById('eImgPrev').style.display = 'block';
+    showToast('Imagen subida ✓');
+  }catch(e){ showToast(e.message||'Error',true); }
+});
+
+document.getElementById('editSaveBtn').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('eNombre').value.trim();
+  const categoria = document.getElementById('eCategoria').value;
+  const descripcion = document.getElementById('eDesc').value.trim();
+  const contacto = document.getElementById('eContacto').value.trim();
+  const autor = document.getElementById('eAutor').value.trim();
+  const errEl = document.getElementById('editErr');
+  errEl.textContent='';
+  if(!nombre||!descripcion||!contacto){ errEl.textContent='Completa nombre, descripción y contacto.'; return; }
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled=true; btn.textContent='Guardando…';
+  try{
+    await apiCall('/api/moderar','PUT',{id:editingId,nombre,categoria,descripcion,contacto,autor,imagen:editImgUrl});
+    showToast('✏️ Actualizado');
+    document.getElementById('editModal').style.display='none';
+    await loadData();
+  }catch(e){ errEl.textContent=e.message; }
+  finally{ btn.disabled=false; btn.textContent='Guardar cambios'; }
 });
 
 /* ---------------- Init: reintenta con el token guardado en esta pestaña ---------------- */
@@ -516,5 +583,37 @@ document.getElementById('adminPublishBtn').addEventListener('click', async ()=>{
   }
 });
 </script>
+
+<!-- MODAL EDITAR -->
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(20,15,10,0.8);z-index:50;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--cream);color:var(--charcoal);width:100%;max-width:500px;border-radius:12px;padding:22px 20px;max-height:90vh;overflow-y:auto;">
+    <h2 style="font-family:'Fraunces',serif;font-size:1.2rem;margin:0 0 14px;color:var(--clay-dark);">✏️ Editar emprendimiento</h2>
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Nombre</label>
+    <input type="text" id="eNombre" maxlength="60" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;">
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Categoría</label>
+    <select id="eCategoria" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;">
+      <option value="Artesanía en greda">Artesanía en greda</option>
+      <option value="Comida y cocinería">Comida y cocinería</option>
+      <option value="Hospedaje">Hospedaje</option>
+      <option value="Turismo y paseos">Turismo y paseos</option>
+      <option value="Otro">Otro</option>
+    </select>
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Descripción</label>
+    <textarea id="eDesc" rows="3" maxlength="300" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;resize:vertical;"></textarea>
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Contacto</label>
+    <input type="text" id="eContacto" maxlength="80" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;">
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Foto (subir nueva)</label>
+    <input type="file" id="eImgFile" accept="image/jpeg,image/png,image/webp,image/gif" style="margin-bottom:8px;">
+    <img id="eImgPrev" style="display:none;width:100%;max-height:140px;object-fit:cover;border-radius:6px;margin-bottom:8px;" alt="Preview">
+    <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Autor</label>
+    <input type="text" id="eAutor" maxlength="40" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;">
+    <div id="editErr" style="color:#a13a2b;font-size:0.8rem;margin-top:10px;"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-ghost" id="editCloseBtn" style="flex:1;padding:12px;">Cancelar</button>
+      <button class="btn btn-primary" id="editSaveBtn" style="flex:1;padding:12px;">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

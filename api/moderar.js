@@ -19,7 +19,7 @@ const {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, PUT, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
@@ -87,6 +87,36 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.setHeader('Allow', 'GET, DELETE, OPTIONS');
+  if (req.method === 'PUT') {
+    try {
+      const { cleanString, isSafeUrl } = require('./_utils');
+      const CATEGORIAS = ['Artesanía en greda','Comida y cocinería','Hospedaje','Turismo y paseos','Otro'];
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      const id = body.id;
+      if (!id) return res.status(400).json({ error: 'Se requiere el id.' });
+
+      const existing = await redis.get(`negocio:${id}`);
+      if (!existing) return res.status(404).json({ error: 'No encontrado.' });
+      const negocio = typeof existing === 'string' ? JSON.parse(existing) : existing;
+
+      if (body.nombre !== undefined) negocio.nombre = cleanString(body.nombre, 60) || negocio.nombre;
+      if (body.categoria !== undefined && CATEGORIAS.includes(body.categoria)) negocio.categoria = body.categoria;
+      if (body.descripcion !== undefined) negocio.descripcion = cleanString(body.descripcion, 300) || negocio.descripcion;
+      if (body.contacto !== undefined) negocio.contacto = cleanString(body.contacto, 80) || negocio.contacto;
+      if (body.autor !== undefined) negocio.autor = cleanString(body.autor, 40) || negocio.autor;
+      if (body.imagen !== undefined) {
+        const img = cleanString(body.imagen, 500);
+        negocio.imagen = isSafeUrl(img) ? img : '';
+      }
+      negocio.editado = Date.now();
+
+      await redis.set(`negocio:${id}`, JSON.stringify(negocio));
+      return res.status(200).json({ negocio });
+    } catch (e) {
+      return res.status(500).json({ error: 'No se pudo editar.' });
+    }
+  }
+
+  res.setHeader('Allow', 'GET, DELETE, PUT, OPTIONS');
   return res.status(405).json({ error: 'Método no permitido' });
 };
