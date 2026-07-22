@@ -1,10 +1,63 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" prefix="og: https://ogp.me/ns#">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pomaire Compra y Venta</title>
-<meta name="description" content="Directorio de emprendimientos y chat comunitario de Pomaire. Publica tu negocio gratis y conversa con la comunidad.">
+<meta name="theme-color" content="#b5502e">
+
+<!-- ══ SEO PRIMARIO ══════════════════════════════════════════ -->
+<title>Compra y Venta en Pomaire — Publica tu negocio gratis | Pomaire 360</title>
+<meta name="description" content="Directorio gratuito de emprendimientos locales en Pomaire, Chile. Publica tu artesanía, restaurante o servicio y conversa con la comunidad en el chat del pueblo.">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="author" content="Pomaire 360">
+<meta name="geo.region" content="CL-RM">
+<meta name="geo.placename" content="Pomaire, Melipilla, Región Metropolitana, Chile">
+
+<!-- ══ CANONICAL ════════════════════════════════════════════ -->
+<link rel="canonical" href="https://comprayvende.pomaire360.cl/">
+
+<!-- ══ OPEN GRAPH ═══════════════════════════════════════════ -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pomaire 360 — Compra y Venta">
+<meta property="og:title" content="Compra y Venta en Pomaire — Publica tu negocio gratis">
+<meta property="og:description" content="Directorio gratuito de emprendimientos locales en Pomaire. Artesanía, comida, hospedaje y más. Chat comunitario incluido.">
+<meta property="og:url" content="https://comprayvende.pomaire360.cl/">
+<meta property="og:locale" content="es_CL">
+<meta property="og:image" content="https://www.pomaire360.cl/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Pomaire Compra y Venta — Directorio de emprendimientos locales">
+
+<!-- ══ TWITTER / X CARDS ════════════════════════════════════ -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Compra y Venta en Pomaire — Publica tu negocio gratis">
+<meta name="twitter:description" content="Directorio gratuito de emprendimientos y chat comunitario de Pomaire, Chile.">
+<meta name="twitter:image" content="https://www.pomaire360.cl/og-image.jpg">
+<meta name="twitter:image:alt" content="Pomaire Compra y Venta — Directorio de emprendimientos locales">
+
+<!-- ══ FAVICON / ICONOS ══════════════════════════════════════ -->
+<link rel="icon" href="https://www.pomaire360.cl/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="https://www.pomaire360.cl/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="https://www.pomaire360.cl/favicon-96x96.png">
+<link rel="apple-touch-icon" href="https://www.pomaire360.cl/apple-touch-icon.png">
+
+<!-- ══ DATOS ESTRUCTURADOS JSON-LD ══════════════════════════ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Pomaire Compra y Venta",
+  "url": "https://comprayvende.pomaire360.cl/",
+  "description": "Directorio gratuito de emprendimientos locales y chat comunitario de Pomaire, Chile.",
+  "inLanguage": "es-CL",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Pomaire 360",
+    "url": "https://www.pomaire360.cl/"
+  }
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -83,6 +136,19 @@
     line-height:1.5;
     color:var(--cream-2);
   }
+  .back-link{
+    display:inline-block;
+    margin-top:14px;
+    font-size:0.82rem;
+    color:var(--gold);
+    text-decoration:none;
+    font-family:'Space Mono', monospace;
+    letter-spacing:0.02em;
+    position:relative;
+    z-index:1;
+    transition:color 0.15s;
+  }
+  .back-link:hover{color:var(--cream);}
 
   /* ---------- Nav tabs ---------- */
   nav{
@@ -211,6 +277,23 @@
     font-family:'Work Sans',sans-serif;
     cursor:pointer;
   }
+  .card-wa{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    background:#25d366;
+    color:#fff;
+    border:none;
+    border-radius:16px;
+    padding:5px 12px;
+    font-size:0.78rem;
+    font-weight:600;
+    font-family:'Work Sans',sans-serif;
+    text-decoration:none;
+    cursor:pointer;
+    transition:background 0.15s;
+  }
+  .card-wa:hover{background:#1fb855;}
   .card-author{font-family:'Space Mono',monospace;font-size:0.7rem;color:#9c8a76;}
 
   .empty-state{
@@ -410,6 +493,7 @@
     </div>
   </div>
   <p class="subhead">Publica tu emprendimiento gratis y conversa en el chat del pueblo. Hecho por y para la gente de Pomaire.</p>
+  <a href="https://www.pomaire360.cl/" class="back-link">← Volver a Pomaire 360</a>
 </header>
 
 <nav>
@@ -500,6 +584,22 @@ function esc(s){
   return d.innerHTML;
 }
 
+// Extrae un número de teléfono chileno de un string y retorna la URL de WhatsApp, o null.
+function extractWhatsApp(contacto){
+  if(!contacto) return null;
+  // Buscar patrón de número chileno: +56 9 XXXX XXXX o variantes
+  const cleaned = contacto.replace(/[\s\-().]/g, '');
+  // Buscar +569XXXXXXXX o 569XXXXXXXX o 9XXXXXXXX
+  let match = cleaned.match(/(?:\+?56)?9\d{8}/);
+  if(match){
+    let num = match[0].replace(/^\+/, '');
+    if(num.startsWith('9') && num.length === 9) num = '56' + num;
+    if(!num.startsWith('56')) num = '56' + num;
+    return 'https://wa.me/' + num;
+  }
+  return null;
+}
+
 function fmtTime(ts){
   const d = new Date(ts);
   return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
@@ -539,6 +639,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     const tab = btn.dataset.tab;
     document.getElementById('tab-negocios').classList.toggle('hidden', tab!=='negocios');
     document.getElementById('tab-chat').classList.toggle('hidden', tab!=='chat');
+    document.getElementById('fabBtn').classList.toggle('hidden', tab!=='negocios');
     if(tab==='chat'){
       initChatView();
     }
@@ -587,10 +688,10 @@ function renderNegocios(){
     return;
   }
 
-  // Todo el texto se inserta con esc() (nodos de texto). El contacto NO se pone en un
-  // atributo/onclick inline: se guarda en data-contacto y se lee vía dataset, evitando
-  // cualquier fuga de comillas hacia HTML o JavaScript inline (XSS).
-  list.innerHTML = sorted.map(n => `
+  list.innerHTML = sorted.map(n => {
+    const waUrl = extractWhatsApp(n.contacto);
+    const waBtn = waUrl ? `<a class="card-wa" href="${esc(waUrl)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : '';
+    return `
     <div class="card">
       ${n.imagen ? `<img class="card-img" src="${esc(n.imagen)}" alt="${esc(n.nombre)}" loading="lazy" onerror="this.style.display='none'">` : ''}
       <div class="card-body">
@@ -602,12 +703,15 @@ function renderNegocios(){
         </div>
         <p class="card-desc">${esc(n.descripcion)}</p>
         <div class="card-foot">
-          <button type="button" class="card-contact" data-contacto="${esc(n.contacto)}">📞 ${esc(n.contacto)}</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="card-contact" data-contacto="${esc(n.contacto)}">📞 ${esc(n.contacto)}</button>
+            ${waBtn}
+          </div>
           <span class="card-author">publicado por ${esc(n.autor)} · ${fmtTime(n.creado)}</span>
         </div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 // Delegación de eventos: copiar contacto al portapapeles sin usar onclick inline con datos del usuario.
