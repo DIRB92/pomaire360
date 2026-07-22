@@ -113,6 +113,80 @@
     max-width:88vw;text-align:center;
   }
   .toast.error{background:var(--danger);color:#fff;}
+
+  /* Formulario de crear emprendimiento */
+  .create-form{
+    background:#3a3129;
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:24px;
+    border:1.5px solid #4a3c30;
+  }
+  .create-form h3{
+    font-family:'Fraunces',serif;
+    font-size:1.1rem;
+    margin:0 0 14px;
+    color:var(--gold);
+  }
+  .create-form label{
+    display:block;
+    font-size:0.72rem;
+    font-family:'Space Mono',monospace;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:#a89685;
+    margin:12px 0 5px;
+  }
+  .create-form select{
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid #4a3c30;
+    border-radius:8px;
+    background:#2b2622;
+    font-family:'Work Sans',sans-serif;
+    font-size:0.9rem;
+    color:var(--cream);
+  }
+  .create-form textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid #4a3c30;
+    border-radius:8px;
+    background:#2b2622;
+    font-family:'Work Sans',sans-serif;
+    font-size:0.9rem;
+    color:var(--cream);
+    resize:vertical;
+    min-height:60px;
+  }
+  .create-form select:focus, .create-form textarea:focus{
+    outline:none;border-color:var(--gold);
+  }
+  .img-area{
+    border:2px dashed #4a3c30;
+    border-radius:8px;
+    padding:20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color 0.15s;
+    position:relative;
+  }
+  .img-area:hover{border-color:var(--gold);}
+  .img-area.has-img{padding:0;border-style:solid;}
+  .img-area img{
+    width:100%;max-height:180px;object-fit:cover;
+    border-radius:6px;display:block;
+  }
+  .img-area .img-hint{color:#8a7867;font-size:0.85rem;}
+  .img-area .img-remove{
+    position:absolute;top:6px;right:6px;
+    width:26px;height:26px;border-radius:50%;
+    background:var(--danger);color:#fff;border:none;
+    font-size:0.8rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .form-row{display:flex;gap:10px;margin-top:16px;}
+  .form-row .btn{flex:1;}
 </style>
 </head>
 <body>
@@ -137,6 +211,46 @@
     </div>
 
     <h2>Emprendimientos (<span id="countNegocios">0</span>)</h2>
+
+    <!-- Formulario crear emprendimiento -->
+    <div class="create-form">
+      <h3>➕ Publicar emprendimiento</h3>
+
+      <label>Nombre del negocio</label>
+      <input type="text" id="aNombre" placeholder="Ej: Alfarería Los Ríos" maxlength="60">
+
+      <label>Categoría</label>
+      <select id="aCategoria">
+        <option value="Artesanía en greda">Artesanía en greda</option>
+        <option value="Comida y cocinería">Comida y cocinería</option>
+        <option value="Hospedaje">Hospedaje</option>
+        <option value="Turismo y paseos">Turismo y paseos</option>
+        <option value="Otro">Otro</option>
+      </select>
+
+      <label>Descripción</label>
+      <textarea id="aDesc" rows="3" maxlength="300" placeholder="Cuenta qué ofrece este negocio…"></textarea>
+
+      <label>Contacto (WhatsApp, teléfono, Instagram)</label>
+      <input type="text" id="aContacto" placeholder="Ej: +56 9 1234 5678" maxlength="80">
+
+      <label>Foto (opcional · máx 4 MB)</label>
+      <div class="img-area" id="adminImgArea">
+        <input type="file" id="adminImgFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+        <div class="img-hint" id="adminImgHint">📷 Clic para seleccionar imagen</div>
+        <img class="hidden" id="adminImgPreview" alt="Preview">
+        <button type="button" class="img-remove hidden" id="adminImgRemove">✕</button>
+      </div>
+
+      <label>Publicado por</label>
+      <input type="text" id="aAutor" placeholder="Ej: Diego Rojas" maxlength="40">
+
+      <div class="error-msg" id="adminFormError"></div>
+      <div class="form-row">
+        <button class="btn btn-primary" id="adminPublishBtn">Publicar emprendimiento</button>
+      </div>
+    </div>
+
     <div id="listNegocios"></div>
 
     <h2>Mensajes del chat (<span id="countMensajes">0</span>)</h2>
@@ -233,6 +347,7 @@ function renderNegocios(negocios){
   wrap.innerHTML = negocios.map(n => `
     <div class="item">
       <div class="item-body">
+        ${n.imagen ? `<img src="${esc(n.imagen)}" alt="${esc(n.nombre)}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` : ''}
         <div class="item-title">${esc(n.nombre)} <span style="color:#8a7867;font-weight:400;">— ${esc(n.categoria)}</span></div>
         <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}</div>
         <div class="item-text">${esc(n.descripcion)}</div>
@@ -287,6 +402,119 @@ document.getElementById('panel').addEventListener('click', async (e)=>{
     tryEnter(stored);
   }
 })();
+
+/* ──────────── CREAR EMPRENDIMIENTO DESDE ADMIN ──────────── */
+let adminUploadedUrl = '';
+
+const adminImgArea = document.getElementById('adminImgArea');
+const adminImgFile = document.getElementById('adminImgFile');
+const adminImgPreview = document.getElementById('adminImgPreview');
+const adminImgHint = document.getElementById('adminImgHint');
+const adminImgRemove = document.getElementById('adminImgRemove');
+
+adminImgArea.addEventListener('click', (e)=>{
+  if(e.target === adminImgRemove || e.target.closest('.img-remove')) return;
+  adminImgFile.click();
+});
+
+adminImgFile.addEventListener('change', async ()=>{
+  const file = adminImgFile.files[0];
+  if(!file) return;
+
+  if(file.size > 4*1024*1024){
+    showToast('Imagen muy pesada. Máximo 4 MB.', true);
+    adminImgFile.value = '';
+    return;
+  }
+  if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){
+    showToast('Solo JPEG, PNG, WebP o GIF.', true);
+    adminImgFile.value = '';
+    return;
+  }
+
+  // Preview local
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    adminImgPreview.src = ev.target.result;
+    adminImgPreview.classList.remove('hidden');
+    adminImgRemove.classList.remove('hidden');
+    adminImgHint.classList.add('hidden');
+    adminImgArea.classList.add('has-img');
+  };
+  reader.readAsDataURL(file);
+
+  // Upload
+  adminImgHint.textContent = '⏳ Subiendo…';
+  try{
+    const res = await fetch('/api/upload', {
+      method:'POST',
+      headers:{'Content-Type': file.type},
+      body: file
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Error al subir');
+    adminUploadedUrl = data.url;
+    showToast('Imagen subida ✓');
+  }catch(e){
+    showToast(e.message || 'Error al subir imagen', true);
+    resetAdminImg();
+  }
+});
+
+adminImgRemove.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  resetAdminImg();
+});
+
+function resetAdminImg(){
+  adminUploadedUrl = '';
+  adminImgFile.value = '';
+  adminImgPreview.src = '';
+  adminImgPreview.classList.add('hidden');
+  adminImgRemove.classList.add('hidden');
+  adminImgHint.classList.remove('hidden');
+  adminImgHint.textContent = '📷 Clic para seleccionar imagen';
+  adminImgArea.classList.remove('has-img');
+}
+
+document.getElementById('adminPublishBtn').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('aNombre').value.trim();
+  const categoria = document.getElementById('aCategoria').value;
+  const descripcion = document.getElementById('aDesc').value.trim();
+  const contacto = document.getElementById('aContacto').value.trim();
+  const autor = document.getElementById('aAutor').value.trim() || 'Admin';
+  const imagen = adminUploadedUrl;
+  const errEl = document.getElementById('adminFormError');
+
+  errEl.textContent = '';
+  if(!nombre || !descripcion || !contacto){
+    errEl.textContent = 'Completa nombre, descripción y contacto.';
+    return;
+  }
+
+  const btn = document.getElementById('adminPublishBtn');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+
+  try{
+    const res = await fetch('/api/negocios', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ nombre, categoria, descripcion, contacto, imagen, autor })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || 'Error al publicar');
+
+    showToast('¡Emprendimiento publicado!');
+    ['aNombre','aDesc','aContacto','aAutor'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('aCategoria').selectedIndex = 0;
+    resetAdminImg();
+    await loadData();
+  }catch(e){
+    errEl.textContent = e.message || 'Error al publicar.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Publicar emprendimiento';
+  }
+});
 </script>
 </body>
 </html>
