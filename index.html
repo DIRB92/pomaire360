@@ -469,6 +469,34 @@
     max-width:88vw;text-align:center;
   }
   .toast.error{background:var(--danger);color:#fff;}
+
+  /* ---------- Search bar ---------- */
+  .search-bar{position:relative;margin-bottom:12px;}
+  .search-bar input{width:100%;padding:11px 14px 11px 38px;border:1.5px solid #4a3c30;border-radius:22px;background:#3a3129;color:var(--cream);font-family:'Work Sans',sans-serif;font-size:0.9rem;}
+  .search-bar input::placeholder{color:#8a7867;}
+  .search-bar input:focus{outline:none;border-color:var(--gold);}
+  .search-bar::before{content:'🔍';position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:0.85rem;pointer-events:none;}
+
+  /* ---------- Image upload ---------- */
+  .img-upload-area{position:relative;border:2px dashed #d8c7ac;border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color 0.15s;}
+  .img-upload-area:hover{border-color:var(--clay-red);}
+  .img-upload-placeholder{padding:28px 16px;text-align:center;color:#9c8a76;font-size:0.88rem;}
+  .img-upload-placeholder span{font-size:1.4rem;vertical-align:middle;margin-right:6px;}
+  .img-upload-preview{width:100%;max-height:200px;object-fit:cover;display:block;}
+  .img-upload-remove{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+  /* ---------- Footer ---------- */
+  .site-footer{background:#1e1a17;border-top:1px solid #3a3129;padding:28px 20px 22px;text-align:center;}
+  .footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin-bottom:14px;}
+  .footer-links a{color:var(--gold);text-decoration:none;font-size:0.82rem;font-family:'Space Mono',monospace;transition:color 0.15s;}
+  .footer-links a:hover{color:var(--cream);}
+  .footer-credit{font-size:0.72rem;color:#6b5a48;margin-top:10px;}
+  .footer-credit a{color:#a89685;text-decoration:none;}
+
+  /* ---------- Load more ---------- */
+  .load-more-wrap{text-align:center;margin:18px 0;}
+  .load-more-btn{padding:10px 22px;border-radius:20px;border:1.5px solid #4a3c30;background:transparent;color:#c9b8a4;font-family:'Work Sans',sans-serif;font-size:0.85rem;cursor:pointer;transition:all 0.15s;}
+  .load-more-btn:hover{border-color:var(--gold);color:var(--gold);}
 </style>
 </head>
 <body>
@@ -504,6 +532,9 @@
 <main>
   <!-- NEGOCIOS TAB -->
   <section id="tab-negocios">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Buscar emprendimiento…" maxlength="60">
+    </div>
     <div class="chips" id="chips"></div>
     <div id="negociosList"></div>
   </section>
@@ -552,8 +583,14 @@
     <label for="fContacto">Contacto (WhatsApp, Instagram, teléfono)</label>
     <input type="text" id="fContacto" placeholder="Ej: +56 9 1234 5678" maxlength="80">
 
-    <label for="fImg">Link de una foto (opcional)</label>
-    <input type="text" id="fImg" placeholder="https://…" maxlength="500">
+    <label for="fImg">Foto del negocio (opcional · máx 4 MB)</label>
+    <div class="img-upload-area" id="imgUploadArea">
+      <input type="file" id="fImgFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+      <div class="img-upload-placeholder" id="imgPlaceholder"><span>📷</span> Toca para elegir una imagen</div>
+      <img class="img-upload-preview hidden" id="imgPreview" alt="Preview">
+      <button type="button" class="img-upload-remove hidden" id="imgRemoveBtn">✕</button>
+    </div>
+    <input type="hidden" id="fImg" value="">
 
     <label for="fAutor">Tu nombre</label>
     <input type="text" id="fAutor" placeholder="Ej: Familia Vergara" maxlength="40">
@@ -572,9 +609,13 @@ const CATS = ["Todos","Artesanía en greda","Comida y cocinería","Hospedaje","T
 let negocios = [];
 let mensajes = [];
 let activeCat = "Todos";
+let searchQuery = "";
 let userName = null;
 let lastMsgTs = 0;
 let chatPollTimer = null;
+const PAGE_SIZE = 12;
+let currentPage = 1;
+let uploadedImageUrl = '';
 
 /* ---------------- Helpers de seguridad y formato ---------------- */
 // Escapa texto para insertarlo de forma segura dentro de HTML (nodos de texto).
@@ -654,10 +695,17 @@ function renderChips(){
     const c = document.createElement('button');
     c.className = 'chip' + (cat===activeCat ? ' active' : '');
     c.textContent = cat;
-    c.addEventListener('click', ()=>{ activeCat = cat; renderChips(); renderNegocios(); });
+    c.addEventListener('click', ()=>{ activeCat = cat; currentPage = 1; renderChips(); renderNegocios(); });
     wrap.appendChild(c);
   });
 }
+
+/* ---------------- Search ---------------- */
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  searchQuery = e.target.value.trim();
+  currentPage = 1;
+  renderNegocios();
+});
 
 /* ---------------- Negocios: API real (Vercel + Redis) ---------------- */
 async function loadNegocios(){
@@ -675,20 +723,34 @@ function renderNegocios(){
   const list = document.getElementById('negociosList');
   const countEl = document.getElementById('countNegocios');
   countEl.textContent = negocios.length ? `(${negocios.length})` : '';
-  const filtered = activeCat==='Todos' ? negocios : negocios.filter(n=>n.categoria===activeCat);
+  let filtered = activeCat==='Todos' ? negocios : negocios.filter(n=>n.categoria===activeCat);
+
+  if(searchQuery){
+    const q = searchQuery.toLowerCase();
+    filtered = filtered.filter(n =>
+      (n.nombre && n.nombre.toLowerCase().includes(q)) ||
+      (n.descripcion && n.descripcion.toLowerCase().includes(q)) ||
+      (n.autor && n.autor.toLowerCase().includes(q)) ||
+      (n.categoria && n.categoria.toLowerCase().includes(q))
+    );
+  }
+
   const sorted = [...filtered].sort((a,b)=>b.creado - a.creado);
 
   if(sorted.length===0){
     list.innerHTML = `
       <div class="empty-state">
         <div class="ring"><svg viewBox="0 0 60 60"><g fill="none" stroke="#c98a34" stroke-width="2"><circle cx="30" cy="30" r="27"/><circle cx="30" cy="30" r="14"/></g></svg></div>
-        <strong>Aún no hay publicaciones aquí</strong>
-        <p>Sé el primero en mostrar tu emprendimiento a la comunidad. Toca el botón + para publicar.</p>
+        <strong>${searchQuery ? 'Sin resultados' : 'Aún no hay publicaciones aquí'}</strong>
+        <p>${searchQuery ? 'Intenta con otros términos.' : 'Sé el primero en mostrar tu emprendimiento a la comunidad. Toca el botón + para publicar.'}</p>
       </div>`;
     return;
   }
 
-  list.innerHTML = sorted.map(n => {
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paginated = sorted.slice(0, currentPage * PAGE_SIZE);
+
+  list.innerHTML = paginated.map(n => {
     const waUrl = extractWhatsApp(n.contacto);
     const waBtn = waUrl ? `<a class="card-wa" href="${esc(waUrl)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : '';
     return `
@@ -712,6 +774,11 @@ function renderNegocios(){
       </div>
     </div>
   `}).join('');
+
+  if(currentPage < totalPages){
+    list.innerHTML += `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Mostrar más (${sorted.length - paginated.length} restantes)</button></div>`;
+    document.getElementById('loadMoreBtn').addEventListener('click', ()=>{ currentPage++; renderNegocios(); });
+  }
 }
 
 // Delegación de eventos: copiar contacto al portapapeles sin usar onclick inline con datos del usuario.
@@ -742,7 +809,7 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
   const categoria = document.getElementById('fCategoria').value;
   const descripcion = document.getElementById('fDesc').value.trim();
   const contacto = document.getElementById('fContacto').value.trim();
-  const imagen = document.getElementById('fImg').value.trim();
+  const imagen = uploadedImageUrl || '';
   const autor = document.getElementById('fAutor').value.trim() || 'Anónimo';
 
   formError.textContent = '';
@@ -759,8 +826,9 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
     await loadNegocios();
 
     overlay.classList.add('hidden');
-    ['fNombre','fDesc','fContacto','fImg','fAutor'].forEach(id=>document.getElementById(id).value='');
+    ['fNombre','fDesc','fContacto','fAutor'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('fCategoria').selectedIndex = 0;
+    resetImageUpload();
     showToast('¡Publicado con éxito!');
   }catch(e){
     formError.textContent = e.message || 'Error al publicar, intenta de nuevo.';
@@ -768,6 +836,41 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
     btn.disabled = false; btn.textContent = 'Publicar';
   }
 });
+
+/* ---------------- Image Upload ---------------- */
+const imgFileInput = document.getElementById('fImgFile');
+const imgPreview = document.getElementById('imgPreview');
+const imgPlaceholder = document.getElementById('imgPlaceholder');
+const imgRemoveBtn = document.getElementById('imgRemoveBtn');
+const imgUploadArea = document.getElementById('imgUploadArea');
+
+imgUploadArea.addEventListener('click', (e)=>{
+  if(e.target === imgRemoveBtn || e.target.closest('.img-upload-remove')) return;
+  imgFileInput.click();
+});
+imgFileInput.addEventListener('change', async ()=>{
+  const file = imgFileInput.files[0];
+  if(!file) return;
+  if(file.size > 4*1024*1024){ showToast('Imagen muy pesada. Máximo 4 MB.', true); imgFileInput.value=''; return; }
+  if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){ showToast('Solo JPEG, PNG, WebP o GIF.', true); imgFileInput.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = (ev)=>{ imgPreview.src=ev.target.result; imgPreview.classList.remove('hidden'); imgRemoveBtn.classList.remove('hidden'); imgPlaceholder.classList.add('hidden'); };
+  reader.readAsDataURL(file);
+  imgPlaceholder.innerHTML = '<span>⏳</span> Subiendo imagen…';
+  try{
+    const res = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':file.type}, body:file });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Error al subir');
+    uploadedImageUrl = data.url;
+    document.getElementById('fImg').value = data.url;
+  }catch(e){ showToast(e.message||'No se pudo subir la imagen.', true); resetImageUpload(); }
+});
+imgRemoveBtn.addEventListener('click', (e)=>{ e.stopPropagation(); resetImageUpload(); });
+function resetImageUpload(){
+  uploadedImageUrl=''; document.getElementById('fImg').value=''; imgFileInput.value='';
+  imgPreview.src=''; imgPreview.classList.add('hidden'); imgRemoveBtn.classList.add('hidden');
+  imgPlaceholder.classList.remove('hidden'); imgPlaceholder.innerHTML='<span>📷</span> Toca para elegir una imagen';
+}
 
 /* ---------------- Chat: API real (Vercel + Redis) ---------------- */
 function renderMensajes(){
@@ -879,5 +982,17 @@ function startChatPolling(){
 renderChips();
 loadNegocios();
 </script>
+
+<footer class="site-footer">
+  <div class="footer-links">
+    <a href="https://www.pomaire360.cl/">🏺 Pomaire 360</a>
+    <a href="https://www.pomaire360.cl/alfareria/">Alfarería</a>
+    <a href="https://www.pomaire360.cl/gastronomia/">Gastronomía</a>
+    <a href="https://www.pomaire360.cl/alojamientos/">Alojamientos</a>
+    <a href="https://www.pomaire360.cl/#mapa">Mapa</a>
+    <a href="https://www.pomaire360.cl/anunciate/">Anúnciate</a>
+  </div>
+  <div class="footer-credit">Parte de <a href="https://www.pomaire360.cl/">Pomaire 360</a> · Guía del pueblo alfarero de Chile</div>
+</footer>
 </body>
 </html>
