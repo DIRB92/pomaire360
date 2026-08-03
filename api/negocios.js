@@ -10,12 +10,20 @@ const {
   addMessage,
 } = require('./_utils');
 
+// v2: 12 categorías estándar unificadas (mismas que app.pomaire360.cl y pomaire360.cl)
 const CATEGORIAS_VALIDAS = [
-  'Artesanía en greda',
-  'Comida y cocinería',
-  'Hospedaje',
-  'Turismo y paseos',
-  'Otro',
+  'alfareria',
+  'talleres',
+  'restaurantes',
+  'alojamiento',
+  'comercio',
+  'servicios',
+  'estacionamientos',
+  'salud',
+  'seguridad',
+  'banos',
+  'transporte',
+  'turismo',
 ];
 
 module.exports = async (req, res) => {
