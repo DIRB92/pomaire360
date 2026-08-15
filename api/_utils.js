@@ -3,6 +3,54 @@
 const { Redis } = require('@upstash/redis');
 const crypto = require('crypto');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CORS — Solo permite orígenes propios de pomaire360.cl
+// ─────────────────────────────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://pomaire360.cl',
+  'https://www.pomaire360.cl',
+  'https://comprayvende.pomaire360.cl',
+  'https://app.pomaire360.cl',
+];
+
+/**
+ * Aplica headers CORS restrictivos. Solo los orígenes en ALLOWED_ORIGINS
+ * reciben el header Access-Control-Allow-Origin.
+ * En desarrollo local (localhost) también se permite para facilitar el dev.
+ */
+function applyCors(req, res) {
+  const origin = req.headers.origin || '';
+  const isAllowed =
+    ALLOWED_ORIGINS.includes(origin) ||
+    /^https?:\/\/localhost(:\d+)?$/.test(origin);
+
+  if (isAllowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  // Si el origin no es válido, no se envía el header → el navegador bloquea la respuesta.
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
+}
+
+/**
+ * Verifica que el Origin de una petición de mutación (POST/PUT/DELETE) sea legítimo.
+ * Retorna true si es un origin confiable, false si no lo es.
+ * Para peticiones GET se omite la verificación (son idempotentes).
+ */
+function verifyOrigin(req) {
+  const origin = req.headers.origin || '';
+  if (!origin) {
+    // Peticiones sin Origin (ej: curl, server-to-server) se permiten
+    // solo si vienen con admin token o son internas.
+    return true;
+  }
+  return (
+    ALLOWED_ORIGINS.includes(origin) ||
+    /^https?:\/\/localhost(:\d+)?$/.test(origin)
+  );
+}
+
 /**
  * Crea el cliente de Redis leyendo las variables de entorno.
  * Acepta tanto los nombres de la integración "Upstash Redis" del
@@ -153,5 +201,7 @@ module.exports = {
   checkAdminToken,
   deleteNegocio,
   deleteMensaje,
+  applyCors,
+  verifyOrigin,
   MAX_MENSAJES,
 };

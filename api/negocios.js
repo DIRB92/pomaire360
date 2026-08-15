@@ -8,6 +8,8 @@ const {
   checkRateLimit,
   parseMaybeJson,
   addMessage,
+  applyCors,
+  verifyOrigin,
 } = require('./_utils');
 
 // v2: 12 categorías estándar unificadas (mismas que app.pomaire360.cl y pomaire360.cl)
@@ -27,10 +29,8 @@ const CATEGORIAS_VALIDAS = [
 ];
 
 module.exports = async (req, res) => {
-  // CORS básico (permite que el frontend en el mismo dominio/subdominio consuma la API sin problemas)
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // CORS restrictivo — solo orígenes de pomaire360.cl
+  applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   let redis;
@@ -54,6 +54,11 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'POST') {
+    // Verificar origin para prevenir CSRF
+    if (!verifyOrigin(req)) {
+      return res.status(403).json({ error: 'Origen no autorizado.' });
+    }
+
     try {
       const ip = getClientIp(req);
       const allowed = await checkRateLimit(redis, `ratelimit:negocios:${ip}`, 5, 3600);

@@ -7,12 +7,13 @@ const {
   checkRateLimit,
   parseMaybeJson,
   addMessage,
+  applyCors,
+  verifyOrigin,
 } = require('./_utils');
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // CORS restrictivo — solo orígenes de pomaire360.cl
+  applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   let redis;
@@ -42,6 +43,11 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'POST') {
+    // Verificar origin para prevenir CSRF
+    if (!verifyOrigin(req)) {
+      return res.status(403).json({ error: 'Origen no autorizado.' });
+    }
+
     try {
       const ip = getClientIp(req);
       const allowed = await checkRateLimit(redis, `ratelimit:mensajes:${ip}`, 20, 60);

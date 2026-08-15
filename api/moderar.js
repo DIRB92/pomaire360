@@ -15,12 +15,13 @@ const {
   checkAdminToken,
   deleteNegocio,
   deleteMensaje,
+  applyCors,
+  verifyOrigin,
 } = require('./_utils');
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
+  // CORS restrictivo — solo orígenes de pomaire360.cl
+  applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   let redis;
@@ -44,6 +45,11 @@ module.exports = async (req, res) => {
 
   if (!checkAdminToken(req)) {
     return res.status(401).json({ error: 'Token de administrador inválido o no configurado.' });
+  }
+
+  // Verificar origin en operaciones de mutación (defensa en profundidad + CSRF)
+  if ((req.method === 'DELETE' || req.method === 'PUT') && !verifyOrigin(req)) {
+    return res.status(403).json({ error: 'Origen no autorizado.' });
   }
 
   if (req.method === 'GET') {
