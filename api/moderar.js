@@ -96,7 +96,21 @@ module.exports = async (req, res) => {
   if (req.method === 'PUT') {
     try {
       const { cleanString, isSafeUrl } = require('./_utils');
-      const CATEGORIAS = ['Artesanía en greda','Comida y cocinería','Hospedaje','Turismo y paseos','Otro'];
+      // v2: Usar las mismas categorías estándar que POST /api/negocios
+      const CATEGORIAS = [
+        'alfareria',
+        'talleres',
+        'restaurantes',
+        'alojamiento',
+        'comercio',
+        'servicios',
+        'estacionamientos',
+        'salud',
+        'seguridad',
+        'banos',
+        'transporte',
+        'turismo',
+      ];
       const body = req.body && typeof req.body === 'object' ? req.body : {};
       const id = body.id;
       if (!id) return res.status(400).json({ error: 'Se requiere el id.' });

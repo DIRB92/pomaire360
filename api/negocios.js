@@ -42,6 +42,13 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     try {
+      // Rate limiting en GET para prevenir scraping masivo de datos de contacto
+      const ip = getClientIp(req);
+      const allowed = await checkRateLimit(redis, `ratelimit:negocios-get:${ip}`, 60, 60);
+      if (!allowed) {
+        return res.status(429).json({ error: 'Demasiadas consultas. Intenta de nuevo en un momento.' });
+      }
+
       const ids = await redis.zrange('negocios:index', 0, -1, { rev: true });
       if (!ids.length) return res.status(200).json({ negocios: [] });
 
