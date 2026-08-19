@@ -37,13 +37,16 @@ function applyCors(req, res) {
  * Verifica que el Origin de una petición de mutación (POST/PUT/DELETE) sea legítimo.
  * Retorna true si es un origin confiable, false si no lo es.
  * Para peticiones GET se omite la verificación (son idempotentes).
+ *
+ * FIX: Peticiones sin Origin ahora solo se permiten si vienen con admin token.
+ * Esto previene CSRF desde scripts/bots que no envían el header Origin.
  */
 function verifyOrigin(req) {
   const origin = req.headers.origin || '';
   if (!origin) {
-    // Peticiones sin Origin (ej: curl, server-to-server) se permiten
-    // solo si vienen con admin token o son internas.
-    return true;
+    // Peticiones sin Origin (ej: curl, server-to-server) solo se permiten
+    // si vienen con un admin token válido (operaciones internas/admin).
+    return checkAdminToken(req);
   }
   return (
     ALLOWED_ORIGINS.includes(origin) ||

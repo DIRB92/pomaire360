@@ -2,7 +2,5 @@
 
 User-agent: *
 Allow: /
-Disallow: /admin.html
-Disallow: /api/moderar
+Disallow: /api/
 
-Sitemap: https://comprayvende.pomaire360.cl/sitemap.xml
