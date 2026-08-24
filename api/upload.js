@@ -57,14 +57,20 @@ module.exports = async (req, res) => {
     return res.status(403).json({ error: 'Origen no autorizado.' });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ error: 'Almacenamiento no configurado.' });
+  if (!process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN.length < 20) {
+    return res.status(500).json({ error: 'Almacenamiento no configurado correctamente.' });
+  }
 
   try {
     const redis = getRedis();
     const ip = getClientIp(req);
     const allowed = await checkRateLimit(redis, `ratelimit:upload:${ip}`, 10, 3600);
     if (!allowed) return res.status(429).json({ error: 'Demasiadas subidas. Intenta más tarde.' });
-  } catch (e) { /* allow if redis fails */ }
+  } catch (e) {
+    // Si Redis falla, aplicar límite conservador: denegar por seguridad.
+    // Esto previene abuso ilimitado si la base de datos de rate limiting no está disponible.
+    return res.status(503).json({ error: 'Servicio temporalmente no disponible. Intenta en unos minutos.' });
+  }
 
   try {
     const contentType = (req.headers['content-type'] || '').split(';')[0].trim();
