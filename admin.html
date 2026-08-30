@@ -221,11 +221,18 @@
 
       <label>Categoría</label>
       <select id="aCategoria">
-        <option value="Artesanía en greda">Artesanía en greda</option>
-        <option value="Comida y cocinería">Comida y cocinería</option>
-        <option value="Hospedaje">Hospedaje</option>
-        <option value="Turismo y paseos">Turismo y paseos</option>
-        <option value="Otro">Otro</option>
+        <option value="alfareria">🏺 Alfarería</option>
+        <option value="talleres">🔨 Talleres</option>
+        <option value="restaurantes">🍽️ Restaurantes</option>
+        <option value="alojamiento">🏡 Alojamiento</option>
+        <option value="comercio">🛍️ Comercio</option>
+        <option value="servicios">🔧 Servicios</option>
+        <option value="estacionamientos">🅿️ Estacionamientos</option>
+        <option value="salud">🏥 Salud</option>
+        <option value="seguridad">🛡️ Seguridad</option>
+        <option value="banos">🚻 Baños</option>
+        <option value="transporte">🚌 Transporte</option>
+        <option value="turismo">📍 Turismo</option>
       </select>
 
       <label>Descripción</label>
@@ -267,6 +274,31 @@ function esc(s){
   const d = document.createElement('div');
   d.textContent = s == null ? '' : String(s);
   return d.innerHTML;
+}
+
+// Etiquetas amigables para las categorías (los datos guardan el slug unificado).
+const CAT_LABELS = {
+  alfareria: '🏺 Alfarería', talleres: '🔨 Talleres', restaurantes: '🍽️ Restaurantes',
+  alojamiento: '🏡 Alojamiento', comercio: '🛍️ Comercio', servicios: '🔧 Servicios',
+  estacionamientos: '🅿️ Estacionamientos', salud: '🏥 Salud', seguridad: '🛡️ Seguridad',
+  banos: '🚻 Baños', transporte: '🚌 Transporte', turismo: '📍 Turismo', Otro: 'Otro',
+};
+function catLabel(slug){ return CAT_LABELS[slug] || slug || 'Otro'; }
+
+// Mapea etiquetas antiguas (v1) al slug unificado, para registros previos a la migración.
+const LEGACY_CAT_MAP = {
+  'Artesanía en greda': 'alfareria',
+  'Comida y cocinería': 'restaurantes',
+  'Hospedaje': 'alojamiento',
+  'Turismo y paseos': 'turismo',
+  'Otro': 'servicios',
+};
+// Normaliza cualquier valor de categoría al slug válido más cercano.
+function catSlug(value){
+  if(!value) return 'servicios';
+  if(CAT_LABELS[value]) return value;            // ya es un slug válido
+  if(LEGACY_CAT_MAP[value]) return LEGACY_CAT_MAP[value];
+  return 'servicios';                             // fallback seguro
 }
 
 function fmtTime(ts){
@@ -353,7 +385,7 @@ function renderNegocios(negocios){
     <div class="item">
       <div class="item-body">
         ${n.imagen ? `<img src="${esc(n.imagen)}" alt="${esc(n.nombre)}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` : ''}
-        <div class="item-title">${esc(n.nombre)} <span style="color:#8a7867;font-weight:400;">— ${esc(n.categoria)}</span></div>
+        <div class="item-title">${esc(n.nombre)} <span style="color:#8a7867;font-weight:400;">— ${esc(catLabel(n.categoria))}</span></div>
         <div class="item-meta">por ${esc(n.autor)} · ${esc(n.contacto)} · ${fmtTime(n.creado)}${n.editado ? ' · ✏️ editado' : ''}</div>
         <div class="item-text">${esc(n.descripcion)}</div>
       </div>
@@ -413,7 +445,7 @@ function openEditModal(id){
   editingId = id;
   editImgUrl = n.imagen || '';
   document.getElementById('eNombre').value = n.nombre||'';
-  document.getElementById('eCategoria').value = n.categoria||'Otro';
+  document.getElementById('eCategoria').value = catSlug(n.categoria);
   document.getElementById('eDesc').value = n.descripcion||'';
   document.getElementById('eContacto').value = n.contacto||'';
   document.getElementById('eAutor').value = n.autor||'';
@@ -592,11 +624,18 @@ document.getElementById('adminPublishBtn').addEventListener('click', async ()=>{
     <input type="text" id="eNombre" maxlength="60" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;">
     <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Categoría</label>
     <select id="eCategoria" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;">
-      <option value="Artesanía en greda">Artesanía en greda</option>
-      <option value="Comida y cocinería">Comida y cocinería</option>
-      <option value="Hospedaje">Hospedaje</option>
-      <option value="Turismo y paseos">Turismo y paseos</option>
-      <option value="Otro">Otro</option>
+      <option value="alfareria">🏺 Alfarería</option>
+      <option value="talleres">🔨 Talleres</option>
+      <option value="restaurantes">🍽️ Restaurantes</option>
+      <option value="alojamiento">🏡 Alojamiento</option>
+      <option value="comercio">🛍️ Comercio</option>
+      <option value="servicios">🔧 Servicios</option>
+      <option value="estacionamientos">🅿️ Estacionamientos</option>
+      <option value="salud">🏥 Salud</option>
+      <option value="seguridad">🛡️ Seguridad</option>
+      <option value="banos">🚻 Baños</option>
+      <option value="transporte">🚌 Transporte</option>
+      <option value="turismo">📍 Turismo</option>
     </select>
     <label style="display:block;font-size:0.72rem;font-family:'Space Mono',monospace;text-transform:uppercase;color:#7a6a58;margin:10px 0 5px;">Descripción</label>
     <textarea id="eDesc" rows="3" maxlength="300" style="width:100%;padding:10px;border:1.5px solid #d8c7ac;border-radius:8px;font-size:0.9rem;color:#2b2622;resize:vertical;"></textarea>
