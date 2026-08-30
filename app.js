@@ -1,4 +1,27 @@
-const CATS = ["Todos","Artesanía en greda","Comida y cocinería","Hospedaje","Turismo y paseos","Otro"];
+// Categorías unificadas con el resto del ecosistema (API /api/negocios, Supabase).
+// El value/slug es lo que se envía y almacena; el label es solo para mostrar.
+// IMPORTANTE: los slugs deben coincidir con CATEGORIAS_VALIDAS en api/negocios.js.
+const CAT_LABELS = {
+  alfareria: '🏺 Alfarería',
+  talleres: '🔨 Talleres',
+  restaurantes: '🍽️ Restaurantes',
+  alojamiento: '🏡 Alojamiento',
+  comercio: '🛍️ Comercio',
+  servicios: '🔧 Servicios',
+  estacionamientos: '🅿️ Estacionamientos',
+  salud: '🏥 Salud',
+  seguridad: '🛡️ Seguridad',
+  banos: '🚻 Baños',
+  transporte: '🚌 Transporte',
+  turismo: '📍 Turismo',
+  Otro: 'Otro',
+};
+// Devuelve el label amigable para un slug; si es desconocido, muestra el valor tal cual.
+function catLabel(slug){
+  return CAT_LABELS[slug] || slug || 'Otro';
+}
+// Chips de filtro: "Todos" + las categorías que un comerciante puede publicar desde este sitio.
+const CATS = ["Todos","alfareria","talleres","restaurantes","alojamiento","comercio","servicios","turismo"];
 let negocios = [];
 let mensajes = [];
 let activeCat = "Todos";
@@ -87,7 +110,7 @@ function renderChips(){
   CATS.forEach(cat=>{
     const c = document.createElement('button');
     c.className = 'chip' + (cat===activeCat ? ' active' : '');
-    c.textContent = cat;
+    c.textContent = cat === 'Todos' ? 'Todos' : catLabel(cat);
     c.addEventListener('click', ()=>{ activeCat = cat; currentPage = 1; renderChips(); renderNegocios(); });
     wrap.appendChild(c);
   });
@@ -124,7 +147,8 @@ function renderNegocios(){
       (n.nombre && n.nombre.toLowerCase().includes(q)) ||
       (n.descripcion && n.descripcion.toLowerCase().includes(q)) ||
       (n.autor && n.autor.toLowerCase().includes(q)) ||
-      (n.categoria && n.categoria.toLowerCase().includes(q))
+      (n.categoria && n.categoria.toLowerCase().includes(q)) ||
+      (n.categoria && catLabel(n.categoria).toLowerCase().includes(q))
     );
   }
 
@@ -152,7 +176,7 @@ function renderNegocios(){
       <div class="card-body">
         <div class="card-top">
           <div>
-            <div class="card-cat">${esc(n.categoria)}</div>
+            <div class="card-cat">${esc(catLabel(n.categoria))}</div>
             <h3 class="card-title">${esc(n.nombre)}</h3>
           </div>
         </div>

@@ -28,6 +28,22 @@ const CATEGORIAS_VALIDAS = [
   'turismo',
 ];
 
+// Etiquetas amigables para el anuncio automático en el chat comunitario.
+const CATEGORIA_LABELS = {
+  alfareria: 'Alfarería',
+  talleres: 'Talleres',
+  restaurantes: 'Restaurantes',
+  alojamiento: 'Alojamiento',
+  comercio: 'Comercio',
+  servicios: 'Servicios',
+  estacionamientos: 'Estacionamientos',
+  salud: 'Salud',
+  seguridad: 'Seguridad',
+  banos: 'Baños',
+  transporte: 'Transporte',
+  turismo: 'Turismo',
+};
+
 module.exports = async (req, res) => {
   // CORS restrictivo — solo orígenes de pomaire360.cl
   applyCors(req, res);
@@ -52,7 +68,8 @@ module.exports = async (req, res) => {
       const ids = await redis.zrange('negocios:index', 0, -1, { rev: true });
       if (!ids.length) return res.status(200).json({ negocios: [] });
 
-      const items = await Promise.all(ids.map((id) => redis.get(`negocio:${id}`)));
+      // MGET: una sola llamada a Redis en vez de N gets individuales (evita N+1).
+      const items = await redis.mget(ids.map((id) => `negocio:${id}`));
       const negocios = items.map(parseMaybeJson).filter(Boolean);
       return res.status(200).json({ negocios });
     } catch (e) {
@@ -75,7 +92,7 @@ module.exports = async (req, res) => {
 
       const body = req.body && typeof req.body === 'object' ? req.body : {};
       const nombre = cleanString(body.nombre, 60);
-      const categoria = CATEGORIAS_VALIDAS.includes(body.categoria) ? body.categoria : 'Otro';
+      const categoria = CATEGORIAS_VALIDAS.includes(body.categoria) ? body.categoria : 'servicios';
       const descripcion = cleanString(body.descripcion, 300);
       const contacto = cleanString(body.contacto, 80);
       const imagenRaw = cleanString(body.imagen, 500);
@@ -94,9 +111,10 @@ module.exports = async (req, res) => {
       await redis.zadd('negocios:index', { score: creado, member: id });
 
       // Anuncio automático en el chat comunitario.
+      const categoriaLabel = CATEGORIA_LABELS[categoria] || categoria;
       await addMessage(redis, {
         autor: 'Pomaire',
-        texto: `📢 Nuevo emprendimiento: "${nombre}" (${categoria}) — publicado por ${autor}`,
+        texto: `📢 Nuevo emprendimiento: "${nombre}" (${categoriaLabel}) — publicado por ${autor}`,
         system: true,
       });
 

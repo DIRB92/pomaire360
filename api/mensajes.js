@@ -25,10 +25,20 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     try {
+      // Rate limiting en GET: el chat hace polling cada 4s desde cada cliente.
+      // Un límite generoso (30/min ≈ 1 cada 2s) frena scraping/abuso sin afectar
+      // el polling normal, pero evita que un cliente descontrolado sature Redis.
+      const ip = getClientIp(req);
+      const allowed = await checkRateLimit(redis, `ratelimit:mensajes-get:${ip}`, 30, 60);
+      if (!allowed) {
+        return res.status(429).json({ error: 'Demasiadas consultas al chat. Espera un momento.' });
+      }
+
       const ids = await redis.zrange('mensajes:index', 0, -1);
       if (!ids.length) return res.status(200).json({ mensajes: [] });
 
-      const items = await Promise.all(ids.map((id) => redis.get(`mensaje:${id}`)));
+      // MGET: una sola llamada a Redis en vez de N gets individuales (evita N+1).
+      const items = await redis.mget(ids.map((id) => `mensaje:${id}`));
       let mensajes = items.map(parseMaybeJson).filter(Boolean);
 
       const since = Number(req.query.since);

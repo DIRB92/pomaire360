@@ -59,9 +59,11 @@ module.exports = async (req, res) => {
         redis.zrange('mensajes:index', 0, -1, { rev: true }),
       ]);
 
+      // MGET: una llamada por tipo en vez de N gets individuales (evita N+1).
+      // mget requiere al menos una clave, así que se omite si el índice está vacío.
       const [negocioItems, mensajeItems] = await Promise.all([
-        Promise.all(negocioIds.map((id) => redis.get(`negocio:${id}`))),
-        Promise.all(mensajeIds.map((id) => redis.get(`mensaje:${id}`))),
+        negocioIds.length ? redis.mget(negocioIds.map((id) => `negocio:${id}`)) : Promise.resolve([]),
+        mensajeIds.length ? redis.mget(mensajeIds.map((id) => `mensaje:${id}`)) : Promise.resolve([]),
       ]);
 
       const negocios = negocioItems.map(parseMaybeJson).filter(Boolean);
