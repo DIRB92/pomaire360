@@ -596,3 +596,14 @@ function startChatPolling(){
 /* ---------------- Init ---------------- */
 renderChips();
 loadNegocios();
+
+// Permite abrir directamente una pestaña vía el hash de la URL, p. ej.
+// https://comprayvende.pomaire360.cl/#alfareros (enlazado desde www.pomaire360.cl).
+function openTabFromHash(){
+  const hash = (window.location.hash || '').replace('#', '');
+  if(!hash) return;
+  const btn = document.querySelector(`.tab-btn[data-tab="${hash}"]`);
+  if(btn) btn.click();
+}
+openTabFromHash();
+window.addEventListener('hashchange', openTabFromHash);
