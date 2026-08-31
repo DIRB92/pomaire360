@@ -24,6 +24,11 @@ function catLabel(slug){
 const CATS = ["Todos","alfareria","talleres","restaurantes","alojamiento","comercio","servicios","turismo"];
 let negocios = [];
 let mensajes = [];
+let alfareros = [];
+let activeTab = "negocios";
+let alfarerosLoaded = false;
+let alfSearchQuery = "";
+let uploadedAlfareroFoto = '';
 let activeCat = "Todos";
 let searchQuery = "";
 let userName = null;
@@ -94,11 +99,18 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.tab;
+    activeTab = tab;
     document.getElementById('tab-negocios').classList.toggle('hidden', tab!=='negocios');
+    document.getElementById('tab-alfareros').classList.toggle('hidden', tab!=='alfareros');
     document.getElementById('tab-chat').classList.toggle('hidden', tab!=='chat');
-    document.getElementById('fabBtn').classList.toggle('hidden', tab!=='negocios');
+    // El FAB (+) está disponible tanto para publicar emprendimientos como biografías.
+    const fab = document.getElementById('fabBtn');
+    fab.classList.toggle('hidden', tab!=='negocios' && tab!=='alfareros');
+    fab.title = tab==='alfareros' ? 'Compartir biografía de un alfarero' : 'Publicar emprendimiento';
     if(tab==='chat'){
       initChatView();
+    }else if(tab==='alfareros'){
+      loadAlfareros();
     }
   });
 });
@@ -213,6 +225,11 @@ const overlay = document.getElementById('modalOverlay');
 const formError = document.getElementById('formError');
 
 document.getElementById('fabBtn').addEventListener('click', ()=>{
+  if(activeTab === 'alfareros'){
+    document.getElementById('alFormError').textContent = '';
+    document.getElementById('modalAlfarero').classList.remove('hidden');
+    return;
+  }
   formError.textContent = '';
   overlay.classList.remove('hidden');
 });
@@ -287,6 +304,187 @@ function resetImageUpload(){
   uploadedImageUrl=''; document.getElementById('fImg').value=''; imgFileInput.value='';
   imgPreview.src=''; imgPreview.classList.add('hidden'); imgRemoveBtn.classList.add('hidden');
   imgPlaceholder.classList.remove('hidden'); imgPlaceholder.innerHTML='<span>📷</span> Toca para elegir una imagen';
+}
+
+/* ═══════════════ ALFAREROS: Biografías (Vercel + Redis) ═══════════════ */
+async function loadAlfareros(){
+  // Solo se recarga la primera vez que se entra a la pestaña o tras publicar.
+  try{
+    const data = await apiGet('/api/alfareros');
+    alfareros = data.alfareros || [];
+    alfarerosLoaded = true;
+  }catch(e){
+    alfareros = [];
+    showToast('No se pudieron cargar las biografías.', true);
+  }
+  renderAlfareros();
+}
+
+function renderAlfareros(){
+  const list = document.getElementById('alfarerosList');
+  const countEl = document.getElementById('countAlfareros');
+  countEl.textContent = alfareros.length ? `(${alfareros.length})` : '';
+
+  let filtered = alfareros;
+  if(alfSearchQuery){
+    const q = alfSearchQuery.toLowerCase();
+    filtered = filtered.filter(a =>
+      (a.nombre && a.nombre.toLowerCase().includes(q)) ||
+      (a.oficio && a.oficio.toLowerCase().includes(q)) ||
+      (a.biografia && a.biografia.toLowerCase().includes(q))
+    );
+  }
+
+  const sorted = [...filtered].sort((a,b)=>b.creado - a.creado);
+
+  if(sorted.length === 0){
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="ring"><svg viewBox="0 0 60 60"><g fill="none" stroke="#c98a34" stroke-width="2"><circle cx="30" cy="30" r="27"/><circle cx="30" cy="30" r="14"/></g></svg></div>
+        <strong>${alfSearchQuery ? 'Sin resultados' : 'Aún no hay biografías'}</strong>
+        <p>${alfSearchQuery ? 'Intenta con otro nombre.' : 'Sé el primero en homenajear a un alfarero de Pomaire. Toca el botón + para compartir su historia.'}</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = sorted.map(a => {
+    const foto = a.foto
+      ? `<img class="alfarero-photo" src="${esc(a.foto)}" alt="${esc(a.nombre)}" loading="lazy" onerror="this.outerHTML='<div class=\\'alfarero-photo-ph\\'>🏺</div>'">`
+      : `<div class="alfarero-photo-ph">🏺</div>`;
+    const exp = a.experiencia ? `<span class="alfarero-exp">⏳ ${esc(a.experiencia)}</span>` : '';
+    const oficio = a.oficio ? `<div class="alfarero-oficio">${esc(a.oficio)}</div>` : '';
+    const waUrl = extractWhatsApp(a.contacto);
+    const contacto = a.contacto
+      ? (waUrl
+          ? `<a class="card-wa" href="${esc(waUrl)}" target="_blank" rel="noopener">💬 WhatsApp</a>`
+          : `<button type="button" class="card-contact al-contact" data-contacto="${esc(a.contacto)}">📞 ${esc(a.contacto)}</button>`)
+      : '';
+    return `
+    <div class="alfarero-card" data-id="${esc(a.id)}">
+      <div class="alfarero-head">
+        ${foto}
+        <div class="alfarero-info">
+          ${oficio}
+          <h3 class="alfarero-name">${esc(a.nombre)}</h3>
+          ${exp}
+        </div>
+      </div>
+      <p class="alfarero-bio">${esc(a.biografia)}</p>
+      <button type="button" class="alfarero-more" data-more>Leer más ▾</button>
+      <div class="alfarero-foot">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${contacto}</div>
+        <span class="alfarero-author">aportado por ${esc(a.autor)} · ${fmtTime(a.creado)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Oculta el botón "Leer más" en biografías cortas que no se recortan.
+  list.querySelectorAll('.alfarero-card').forEach(card=>{
+    const bio = card.querySelector('.alfarero-bio');
+    const moreBtn = card.querySelector('[data-more]');
+    if(bio.scrollHeight <= bio.clientHeight + 4){
+      moreBtn.style.display = 'none';
+    }
+  });
+}
+
+// Delegación de eventos para la lista de alfareros: expandir bio y copiar contacto.
+document.getElementById('alfarerosList').addEventListener('click', (e)=>{
+  const moreBtn = e.target.closest('[data-more]');
+  if(moreBtn){
+    const bio = moreBtn.parentElement.querySelector('.alfarero-bio');
+    const expanded = bio.classList.toggle('expanded');
+    moreBtn.textContent = expanded ? 'Leer menos ▴' : 'Leer más ▾';
+    return;
+  }
+  const contactBtn = e.target.closest('.al-contact');
+  if(contactBtn && navigator.clipboard){
+    navigator.clipboard.writeText(contactBtn.dataset.contacto || '').then(()=>showToast('Contacto copiado')).catch(()=>{});
+  }
+});
+
+// Buscador de alfareros.
+document.getElementById('searchAlfareros').addEventListener('input', (e)=>{
+  alfSearchQuery = e.target.value.trim();
+  renderAlfareros();
+});
+
+/* ---------------- Modal biografía ---------------- */
+const alOverlay = document.getElementById('modalAlfarero');
+const alFormError = document.getElementById('alFormError');
+
+document.getElementById('alCancelBtn').addEventListener('click', ()=>{
+  alOverlay.classList.add('hidden');
+});
+alOverlay.addEventListener('click', (e)=>{ if(e.target===alOverlay) alOverlay.classList.add('hidden'); });
+
+document.getElementById('alPublishBtn').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('alNombre').value.trim();
+  const oficio = document.getElementById('alOficio').value.trim();
+  const experiencia = document.getElementById('alExperiencia').value.trim();
+  const biografia = document.getElementById('alBio').value.trim();
+  const contacto = document.getElementById('alContacto').value.trim();
+  const foto = uploadedAlfareroFoto || '';
+  const autor = document.getElementById('alAutor').value.trim() || 'Anónimo';
+
+  alFormError.textContent = '';
+  if(!nombre || !biografia){
+    alFormError.textContent = 'Completa al menos el nombre y la biografía.';
+    return;
+  }
+  if(biografia.length < 40){
+    alFormError.textContent = 'La biografía es muy corta. Cuéntanos un poco más (mínimo 40 caracteres).';
+    return;
+  }
+
+  const btn = document.getElementById('alPublishBtn');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+
+  try{
+    const res = await apiPost('/api/alfareros', { nombre, oficio, experiencia, biografia, contacto, foto, autor });
+    alOverlay.classList.add('hidden');
+    ['alNombre','alOficio','alExperiencia','alBio','alContacto','alAutor'].forEach(id=>document.getElementById(id).value='');
+    resetAlfareroFoto();
+    showToast(res.mensaje || '¡Biografía enviada! Se publicará tras revisión.');
+  }catch(e){
+    alFormError.textContent = e.message || 'Error al enviar, intenta de nuevo.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Enviar biografía';
+  }
+});
+
+/* ---------------- Upload de foto del alfarero ---------------- */
+const alImgFileInput = document.getElementById('alImgFile');
+const alImgPreview = document.getElementById('alImgPreview');
+const alImgPlaceholder = document.getElementById('alImgPlaceholder');
+const alImgRemoveBtn = document.getElementById('alImgRemoveBtn');
+const alImgUploadArea = document.getElementById('alImgUploadArea');
+
+alImgUploadArea.addEventListener('click', (e)=>{
+  if(e.target === alImgRemoveBtn || e.target.closest('.img-upload-remove')) return;
+  alImgFileInput.click();
+});
+alImgFileInput.addEventListener('change', async ()=>{
+  const file = alImgFileInput.files[0];
+  if(!file) return;
+  if(file.size > 4*1024*1024){ showToast('Imagen muy pesada. Máximo 4 MB.', true); alImgFileInput.value=''; return; }
+  if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){ showToast('Solo JPEG, PNG, WebP o GIF.', true); alImgFileInput.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = (ev)=>{ alImgPreview.src=ev.target.result; alImgPreview.classList.remove('hidden'); alImgRemoveBtn.classList.remove('hidden'); alImgPlaceholder.classList.add('hidden'); };
+  reader.readAsDataURL(file);
+  alImgPlaceholder.innerHTML = '<span>⏳</span> Subiendo imagen…';
+  try{
+    const res = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':file.type}, body:file });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Error al subir');
+    uploadedAlfareroFoto = data.url;
+  }catch(e){ showToast(e.message||'No se pudo subir la imagen.', true); resetAlfareroFoto(); }
+});
+alImgRemoveBtn.addEventListener('click', (e)=>{ e.stopPropagation(); resetAlfareroFoto(); });
+function resetAlfareroFoto(){
+  uploadedAlfareroFoto=''; alImgFileInput.value='';
+  alImgPreview.src=''; alImgPreview.classList.add('hidden'); alImgRemoveBtn.classList.add('hidden');
+  alImgPlaceholder.classList.remove('hidden'); alImgPlaceholder.innerHTML='<span>📷</span> Toca para elegir una foto';
 }
 
 /* ---------------- Chat: API real (Vercel + Redis) ---------------- */
