@@ -1,8 +1,11 @@
 // Endpoint de moderación, protegido con un token de administrador.
 //
-// GET    /api/moderar            -> lista TODOS los negocios y mensajes (para el panel admin.html)
+// GET    /api/moderar            -> lista TODOS los negocios, mensajes y biografías de alfareros
+//                                   (pendientes + publicadas) para el panel admin.html
+// POST   /api/moderar?accion=aprobar-alfarero&id=<id>  -> publica una biografía pendiente
 // DELETE /api/moderar?tipo=negocio&id=<id>   -> elimina un emprendimiento
 // DELETE /api/moderar?tipo=mensaje&id=<id>   -> elimina un mensaje del chat
+// DELETE /api/moderar?tipo=alfarero&id=<id>  -> elimina una biografía (pendiente o publicada)
 //
 // Requiere el header "x-admin-token" con el valor de la variable de entorno
 // ADMIN_TOKEN configurada en Vercel. Sin esa variable configurada, el acceso
@@ -15,6 +18,8 @@ const {
   checkAdminToken,
   deleteNegocio,
   deleteMensaje,
+  deleteAlfarero,
+  addMessage,
   applyCors,
   verifyOrigin,
 } = require('./_utils');
@@ -48,28 +53,46 @@ module.exports = async (req, res) => {
   }
 
   // Verificar origin en operaciones de mutación (defensa en profundidad + CSRF)
-  if ((req.method === 'DELETE' || req.method === 'PUT') && !verifyOrigin(req)) {
+  if (['DELETE', 'PUT', 'POST'].includes(req.method) && !verifyOrigin(req)) {
     return res.status(403).json({ error: 'Origen no autorizado.' });
   }
 
   if (req.method === 'GET') {
     try {
-      const [negocioIds, mensajeIds] = await Promise.all([
+      const [negocioIds, mensajeIds, alfPendIds, alfPubIds] = await Promise.all([
         redis.zrange('negocios:index', 0, -1, { rev: true }),
         redis.zrange('mensajes:index', 0, -1, { rev: true }),
+        redis.zrange('alfareros:pendientes', 0, -1, { rev: true }),
+        redis.zrange('alfareros:index', 0, -1, { rev: true }),
       ]);
 
       // MGET: una llamada por tipo en vez de N gets individuales (evita N+1).
       // mget requiere al menos una clave, así que se omite si el índice está vacío.
-      const [negocioItems, mensajeItems] = await Promise.all([
+      const [negocioItems, mensajeItems, alfPendItems, alfPubItems] = await Promise.all([
         negocioIds.length ? redis.mget(negocioIds.map((id) => `negocio:${id}`)) : Promise.resolve([]),
         mensajeIds.length ? redis.mget(mensajeIds.map((id) => `mensaje:${id}`)) : Promise.resolve([]),
+        alfPendIds.length ? redis.mget(alfPendIds.map((id) => `alfarero:${id}`)) : Promise.resolve([]),
+        alfPubIds.length ? redis.mget(alfPubIds.map((id) => `alfarero:${id}`)) : Promise.resolve([]),
       ]);
 
       const negocios = negocioItems.map(parseMaybeJson).filter(Boolean);
       const mensajes = mensajeItems.map(parseMaybeJson).filter(Boolean);
+      // Se marca el estado explícitamente por si el doc guardado no lo trae.
+      const alfarerosPendientes = alfPendItems
+        .map(parseMaybeJson)
+        .filter(Boolean)
+        .map((a) => ({ ...a, estado: 'pendiente' }));
+      const alfarerosPublicados = alfPubItems
+        .map(parseMaybeJson)
+        .filter(Boolean)
+        .map((a) => ({ ...a, estado: 'publicado' }));
 
-      return res.status(200).json({ negocios, mensajes });
+      return res.status(200).json({
+        negocios,
+        mensajes,
+        alfarerosPendientes,
+        alfarerosPublicados,
+      });
     } catch (e) {
       return res.status(500).json({ error: 'No se pudo cargar el contenido para moderar.' });
     }
@@ -79,12 +102,15 @@ module.exports = async (req, res) => {
     try {
       const tipo = req.query.tipo;
       const id = req.query.id;
-      if (!id || (tipo !== 'negocio' && tipo !== 'mensaje')) {
-        return res.status(400).json({ error: 'Parámetros inválidos: se requiere tipo (negocio|mensaje) e id.' });
+      const tiposValidos = ['negocio', 'mensaje', 'alfarero'];
+      if (!id || !tiposValidos.includes(tipo)) {
+        return res.status(400).json({ error: 'Parámetros inválidos: se requiere tipo (negocio|mensaje|alfarero) e id.' });
       }
 
       if (tipo === 'negocio') {
         await deleteNegocio(redis, id);
+      } else if (tipo === 'alfarero') {
+        await deleteAlfarero(redis, id);
       } else {
         await deleteMensaje(redis, id);
       }
@@ -92,6 +118,40 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: 'No se pudo eliminar el elemento.' });
+    }
+  }
+
+  if (req.method === 'POST') {
+    // Única acción POST soportada: aprobar (publicar) una biografía de alfarero pendiente.
+    try {
+      const accion = req.query.accion;
+      const id = req.query.id || (req.body && req.body.id);
+      if (accion !== 'aprobar-alfarero' || !id) {
+        return res.status(400).json({ error: 'Acción inválida. Usa accion=aprobar-alfarero&id=<id>.' });
+      }
+
+      const existing = await redis.get(`alfarero:${id}`);
+      if (!existing) return res.status(404).json({ error: 'Biografía no encontrada.' });
+      const alfarero = typeof existing === 'string' ? JSON.parse(existing) : existing;
+
+      alfarero.estado = 'publicado';
+      alfarero.aprobado = Date.now();
+
+      await redis.set(`alfarero:${id}`, JSON.stringify(alfarero));
+      // Se saca de la cola de pendientes y se agrega al índice público.
+      await redis.zrem('alfareros:pendientes', id);
+      await redis.zadd('alfareros:index', { score: alfarero.creado || Date.now(), member: id });
+
+      // Anuncio en el chat comunitario ahora que la biografía es pública.
+      await addMessage(redis, {
+        autor: 'Pomaire',
+        texto: `📖 Nueva biografía publicada: ${alfarero.nombre}${alfarero.oficio ? ' — ' + alfarero.oficio : ''}. ¡Conoce a nuestros alfareros!`,
+        system: true,
+      });
+
+      return res.status(200).json({ ok: true, alfarero });
+    } catch (e) {
+      return res.status(500).json({ error: 'No se pudo aprobar la biografía.' });
     }
   }
 
@@ -139,6 +199,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.setHeader('Allow', 'GET, DELETE, PUT, OPTIONS');
+  res.setHeader('Allow', 'GET, POST, DELETE, PUT, OPTIONS');
   return res.status(405).json({ error: 'Método no permitido' });
 };

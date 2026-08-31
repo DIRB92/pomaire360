@@ -493,6 +493,69 @@
   .footer-credit{font-size:0.72rem;color:#6b5a48;margin-top:10px;}
   .footer-credit a{color:#a89685;text-decoration:none;}
 
+  /* ---------- Alfareros ---------- */
+  .alfareros-intro{
+    background:#3a3129;
+    border-left:4px solid var(--gold);
+    border-radius:6px;
+    padding:14px 16px;
+    margin-bottom:16px;
+  }
+  .alfareros-intro strong{
+    font-family:'Fraunces',serif;font-size:1.15rem;
+    color:var(--cream);display:block;margin-bottom:4px;
+  }
+  .alfareros-intro p{margin:0;font-size:0.88rem;line-height:1.5;color:#c9b8a4;}
+  .alfarero-card{
+    background:var(--cream);
+    color:var(--charcoal);
+    border-radius:6px;
+    margin-bottom:14px;
+    overflow:hidden;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);
+    border-left:4px solid var(--gold);
+  }
+  .alfarero-head{display:flex;gap:14px;padding:16px 18px 0;align-items:flex-start;}
+  .alfarero-photo{
+    width:74px;height:74px;border-radius:50%;object-fit:cover;flex-shrink:0;
+    background:var(--cream-2);border:2px solid var(--gold);
+  }
+  .alfarero-photo-ph{
+    width:74px;height:74px;border-radius:50%;flex-shrink:0;
+    background:var(--cream-2);border:2px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  }
+  .alfarero-info{flex:1;min-width:0;}
+  .alfarero-name{
+    font-family:'Fraunces',serif;font-weight:600;font-size:1.25rem;margin:0 0 2px;line-height:1.2;
+  }
+  .alfarero-oficio{
+    font-family:'Space Mono',monospace;font-size:0.68rem;letter-spacing:0.05em;
+    text-transform:uppercase;color:var(--sage);font-weight:700;
+  }
+  .alfarero-exp{
+    display:inline-block;margin-top:6px;font-size:0.72rem;
+    background:var(--cream-2);color:var(--clay-dark);
+    padding:2px 9px;border-radius:12px;font-family:'Space Mono',monospace;
+  }
+  .alfarero-bio{
+    margin:12px 0 0;padding:0 18px;
+    font-size:0.93rem;line-height:1.6;color:#4a3c30;white-space:pre-wrap;
+    max-height:6.4em;overflow:hidden;position:relative;transition:max-height 0.2s;
+  }
+  .alfarero-bio.expanded{max-height:none;}
+  .alfarero-more{
+    background:none;border:none;color:var(--clay-red);cursor:pointer;
+    font-family:'Work Sans',sans-serif;font-weight:600;font-size:0.82rem;
+    padding:6px 18px 0;
+  }
+  .alfarero-foot{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+    font-size:0.78rem;color:#6b5a48;border-top:1px dashed #d8c7ac;
+    margin:14px 18px 0;padding:10px 0 16px;
+  }
+  .alfarero-author{font-family:'Space Mono',monospace;font-size:0.7rem;color:#9c8a76;}
+
   /* ---------- Load more ---------- */
   .load-more-wrap{text-align:center;margin:18px 0;}
   .load-more-btn{padding:10px 22px;border-radius:20px;border:1.5px solid #4a3c30;background:transparent;color:#c9b8a4;font-family:'Work Sans',sans-serif;font-size:0.85rem;cursor:pointer;transition:all 0.15s;}
@@ -526,7 +589,8 @@
 
 <nav>
   <button class="tab-btn active" data-tab="negocios">Emprendimientos <span class="count" id="countNegocios"></span></button>
-  <button class="tab-btn" data-tab="chat">Chat Compra y Venta</button>
+  <button class="tab-btn" data-tab="alfareros">Alfareros <span class="count" id="countAlfareros"></span></button>
+  <button class="tab-btn" data-tab="chat">Chat</button>
 </nav>
 
 <main>
@@ -537,6 +601,18 @@
     </div>
     <div class="chips" id="chips"></div>
     <div id="negociosList"></div>
+  </section>
+
+  <!-- ALFAREROS TAB -->
+  <section id="tab-alfareros" class="hidden">
+    <div class="alfareros-intro">
+      <strong>Biografías de Alfareros</strong>
+      <p>Conoce las historias de los maestros y maestras de la greda de Pomaire. ¿Eres alfarero o conoces a uno? Comparte su historia con el botón <b>+</b>. Cada biografía se revisa antes de publicarse.</p>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="searchAlfareros" placeholder="Buscar alfarero…" maxlength="60">
+    </div>
+    <div id="alfarerosList"></div>
   </section>
 
   <!-- CHAT TAB -->
@@ -602,6 +678,47 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" id="cancelBtn">Cancelar</button>
       <button class="btn btn-primary" id="publishBtn">Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: nueva biografía de alfarero -->
+<div class="modal-overlay hidden" id="modalAlfarero">
+  <div class="modal">
+    <h2>Comparte la historia de un alfarero</h2>
+    <div class="modal-sub">Cuéntanos sobre un maestro o maestra de la greda de Pomaire. Tu aporte se revisa antes de publicarse.</div>
+
+    <label for="alNombre">Nombre del alfarero/a</label>
+    <input type="text" id="alNombre" placeholder="Ej: don Manuel Ahumada" maxlength="60">
+
+    <label for="alOficio">Oficio o especialidad (opcional)</label>
+    <input type="text" id="alOficio" placeholder="Ej: Maestro tornero · figuras de greda" maxlength="80">
+
+    <label for="alExperiencia">Años de oficio (opcional)</label>
+    <input type="text" id="alExperiencia" placeholder="Ej: 40 años" maxlength="40">
+
+    <label for="alBio">Biografía</label>
+    <textarea id="alBio" rows="6" maxlength="2000" placeholder="Su historia, cómo aprendió el oficio, qué lo hace especial, sus piezas más conocidas…"></textarea>
+
+    <label for="alContacto">Contacto (opcional)</label>
+    <input type="text" id="alContacto" placeholder="WhatsApp, Instagram o teléfono" maxlength="80">
+
+    <label for="alImg">Foto del alfarero/a (opcional · máx 4 MB)</label>
+    <div class="img-upload-area" id="alImgUploadArea">
+      <input type="file" id="alImgFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+      <div class="img-upload-placeholder" id="alImgPlaceholder"><span>📷</span> Toca para elegir una foto</div>
+      <img class="img-upload-preview hidden" id="alImgPreview" alt="Preview">
+      <button type="button" class="img-upload-remove hidden" id="alImgRemoveBtn">✕</button>
+    </div>
+
+    <label for="alAutor">Tu nombre</label>
+    <input type="text" id="alAutor" placeholder="Ej: Comunidad de Pomaire" maxlength="40">
+
+    <div class="form-error" id="alFormError"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="alCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="alPublishBtn">Enviar biografía</button>
     </div>
   </div>
 </div>

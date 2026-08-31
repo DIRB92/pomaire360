@@ -260,6 +260,12 @@
 
     <div id="listNegocios"></div>
 
+    <h2>Biografías pendientes de aprobación (<span id="countAlfPend">0</span>)</h2>
+    <div id="listAlfPend"></div>
+
+    <h2>Biografías publicadas (<span id="countAlfPub">0</span>)</h2>
+    <div id="listAlfPub"></div>
+
     <h2>Mensajes del chat (<span id="countMensajes">0</span>)</h2>
     <div id="listMensajes"></div>
   </div>
@@ -368,7 +374,52 @@ document.getElementById('refreshBtn').addEventListener('click', loadData);
 async function loadData(){
   const data = await apiCall('/api/moderar', 'GET');
   renderNegocios(data.negocios || []);
+  renderAlfareros(data.alfarerosPendientes || [], data.alfarerosPublicados || []);
   renderMensajes(data.mensajes || []);
+}
+
+function renderAlfareros(pendientes, publicados){
+  document.getElementById('countAlfPend').textContent = pendientes.length;
+  document.getElementById('countAlfPub').textContent = publicados.length;
+
+  const pendWrap = document.getElementById('listAlfPend');
+  if(!pendientes.length){
+    pendWrap.innerHTML = '<div class="empty">No hay biografías pendientes de revisión.</div>';
+  }else{
+    pendWrap.innerHTML = pendientes.map(a => alfareroItem(a, true)).join('');
+  }
+
+  const pubWrap = document.getElementById('listAlfPub');
+  if(!publicados.length){
+    pubWrap.innerHTML = '<div class="empty">No hay biografías publicadas.</div>';
+  }else{
+    pubWrap.innerHTML = publicados.map(a => alfareroItem(a, false)).join('');
+  }
+}
+
+// Renderiza una biografía de alfarero. Si es pendiente, muestra botón "Aprobar".
+function alfareroItem(a, esPendiente){
+  const foto = a.foto ? `<img src="${esc(a.foto)}" alt="${esc(a.nombre)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;float:left;margin:0 12px 6px 0;">` : '';
+  const oficio = a.oficio ? ` <span style="color:#8a7867;font-weight:400;">— ${esc(a.oficio)}</span>` : '';
+  const exp = a.experiencia ? ` · ${esc(a.experiencia)}` : '';
+  const contacto = a.contacto ? ` · ${esc(a.contacto)}` : '';
+  const aprobarBtn = esPendiente
+    ? `<button class="btn btn-primary" data-aprobar-id="${esc(a.id)}" style="font-size:0.78rem;padding:8px 12px;">✓ Aprobar</button>`
+    : '';
+  return `
+    <div class="item">
+      <div class="item-body">
+        ${foto}
+        <div class="item-title">${esc(a.nombre)}${oficio}</div>
+        <div class="item-meta">aportado por ${esc(a.autor)}${exp}${contacto} · ${fmtTime(a.creado)}</div>
+        <div class="item-text">${esc(a.biografia)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        ${aprobarBtn}
+        <button class="btn btn-danger" data-tipo="alfarero" data-id="${esc(a.id)}">Borrar</button>
+      </div>
+    </div>
+  `;
 }
 
 let allNegocios = [];
@@ -420,11 +471,28 @@ document.getElementById('panel').addEventListener('click', async (e)=>{
   const editBtn = e.target.closest('button[data-edit-id]');
   if(editBtn){ openEditModal(editBtn.dataset.editId); return; }
 
+  const aprobarBtn = e.target.closest('button[data-aprobar-id]');
+  if(aprobarBtn){
+    const id = aprobarBtn.dataset.aprobarId;
+    if(!confirm('¿Aprobar y publicar esta biografía? Quedará visible para toda la comunidad.')) return;
+    aprobarBtn.disabled = true;
+    try{
+      await apiCall(`/api/moderar?accion=aprobar-alfarero&id=${encodeURIComponent(id)}`, 'POST');
+      showToast('Biografía publicada ✓');
+      await loadData();
+    }catch(err){
+      showToast(err.message, true);
+      aprobarBtn.disabled = false;
+    }
+    return;
+  }
+
   const btn = e.target.closest('button[data-tipo]');
   if(!btn) return;
   const tipo = btn.dataset.tipo;
   const id = btn.dataset.id;
-  if(!confirm('¿Eliminar este ' + (tipo==='negocio' ? 'emprendimiento' : 'mensaje') + '?')) return;
+  const nombreTipo = tipo==='negocio' ? 'emprendimiento' : (tipo==='alfarero' ? 'biografía' : 'mensaje');
+  if(!confirm('¿Eliminar esta ' + nombreTipo + '?')) return;
   btn.disabled = true;
   try{
     await apiCall(`/api/moderar?tipo=${encodeURIComponent(tipo)}&id=${encodeURIComponent(id)}`, 'DELETE');

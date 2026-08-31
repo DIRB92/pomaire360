@@ -193,6 +193,16 @@ async function deleteMensaje(redis, id) {
   await redis.del(`mensaje:${id}`);
 }
 
+/**
+ * Elimina una biografía de alfarero por id de cualquiera de sus dos índices
+ * (pendiente de moderación o publicada) más el documento.
+ */
+async function deleteAlfarero(redis, id) {
+  await redis.zrem('alfareros:index', id);
+  await redis.zrem('alfareros:pendientes', id);
+  await redis.del(`alfarero:${id}`);
+}
+
 module.exports = {
   getRedis,
   getClientIp,
@@ -204,6 +214,7 @@ module.exports = {
   checkAdminToken,
   deleteNegocio,
   deleteMensaje,
+  deleteAlfarero,
   applyCors,
   verifyOrigin,
   MAX_MENSAJES,
